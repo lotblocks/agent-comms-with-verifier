@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bus import Bus
 from verification_chain import build_chain_summary
 from agent_lifecycle import ShutdownFlag, install_signal_handlers
+from agent_memory import MemoryStore
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -38,8 +39,19 @@ VERIFIER_ORCH = os.path.abspath(
 
 
 def run_verified_builder(*, builder_script: str, skill_name: str, skill_doc: str,
-                         intent: str, max_attempts: int) -> dict:
-    """Invoke the verifier orchestrator. Returns the parsed RunSkillVerifiedResult."""
+                         intent: str, max_attempts: int,
+                         memory: MemoryStore | None = None) -> dict:
+    """Invoke the verifier orchestrator. Returns the parsed RunSkillVerifiedResult.
+
+    If a MemoryStore is provided, recall per-skill memories and append them to
+    skill_doc as "MEMORY HINTS" — the LLM verifier will use these in its system
+    prompt. The mock verifier ignores them (it's deterministic).
+    """
+    if memory is not None:
+        hints = memory.claim_guidelines_for_skill(skill_name)
+        if hints:
+            skill_doc = f"{skill_doc}\n\n--- MEMORY HINTS (from past runs) ---\n{hints}"
+
     cmd = [
         "python3", VERIFIER_ORCH,
         "--target-script", builder_script,
@@ -48,18 +60,18 @@ def run_verified_builder(*, builder_script: str, skill_name: str, skill_doc: str
         "--intent", intent,
         "--max-attempts", str(max_attempts),
         "--strictness", "medium",
-        "--backend", "mock",   # deterministic for the demo; swap to llm with a real key
+        "--backend", os.environ.get("VERIFIER_BACKEND", "mock"),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     if proc.returncode not in (0, 1):
         raise RuntimeError(
             f"orchestrator crashed (exit {proc.returncode}): {proc.stderr[:300]}"
         )
-    # exit 0 = verified/partial, exit 1 = failed; both produce valid JSON on stdout.
     return json.loads(proc.stdout)
 
 
-def handle_request(bus: Bus, my_id: str, msg: dict) -> None:
+def handle_request(bus: Bus, my_id: str, msg: dict,
+                   memory: MemoryStore | None = None) -> None:
     payload = msg["payload"]
     task = payload.get("task")
     conv_id = msg["conversation_id"]
@@ -70,13 +82,27 @@ def handle_request(bus: Bus, my_id: str, msg: dict) -> None:
 
     if task == "compute_total":
         builder = os.path.join(HERE, "_compute_total.py")
+        skill_name = payload.get("skill_name", "demo-compute-total")
         result = run_verified_builder(
             builder_script=builder,
-            skill_name=payload.get("skill_name", "demo-compute-total"),
+            skill_name=skill_name,
             skill_doc=payload.get("skill_doc", ""),
             intent=payload.get("intent", ""),
             max_attempts=payload.get("max_attempts", 2),
+            memory=memory,
         )
+
+        # Learning step: store any gap reports as per-skill memories so the
+        # next run consults them. Track reputation per worker.
+        if memory is not None:
+            gap = result.get("verification", {}).get("gap_report")
+            if gap:
+                stored = memory.store_gap(skill_name, gap)
+                if stored:
+                    print(f"[beta] stored {len(stored)} gap memories for {skill_name}",
+                          flush=True)
+            success = result.get("verification", {}).get("status") == "verified"
+            memory.store_reputation(my_id, success)
         # Try to parse the inner result string back into a dict for cleaner downstream.
         try:
             parsed_result = json.loads(result["result"])
@@ -132,9 +158,14 @@ def main() -> int:
     parser.add_argument("--serve-forever", action="store_true",
                         help="ignore --max-requests and --idle-timeout-sec; "
                              "run until SIGTERM/SIGINT")
+    parser.add_argument("--memory-db", default=os.environ.get("AGENT_MEMORY_DB", ""),
+                        help="path to a MemoryStore SQLite file; empty = no memory")
     args = parser.parse_args()
 
     bus = Bus(args.db)
+    memory = MemoryStore(args.memory_db) if args.memory_db else None
+    if memory is not None:
+        print(f"[beta] memory: {args.memory_db} ({memory.count()} memories)", flush=True)
     # Every replica subscribes to its personal inbox AND the shared role topic
     # so the bus can distribute work across replicas via atomic claim-locking.
     bus.register(
@@ -172,7 +203,7 @@ def main() -> int:
             if m["msg_type"] != "request":
                 continue
             try:
-                handle_request(bus, args.my_id, m)
+                handle_request(bus, args.my_id, m, memory=memory)
                 handled += 1
             except Exception as e:
                 print(f"[beta] error handling request: {e}", flush=True)

@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bus import Bus
 from verification_chain import build_chain_summary
 from agent_lifecycle import ShutdownFlag, install_signal_handlers
+from agent_memory import MemoryStore
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -92,20 +93,29 @@ def request_data_from_beta(bus: Bus, my_id: str, upstream_role: str,
 
 
 def run_verified_writer(*, data_payload: dict, skill_doc: str, intent: str,
-                        max_attempts: int) -> dict:
-    """Invoke the verifier orchestrator on the report-writing builder."""
+                        max_attempts: int, skill_name: str = "demo-write-report",
+                        memory: MemoryStore | None = None) -> dict:
+    """Invoke the verifier orchestrator on the report-writing builder.
+
+    Consults per-skill memories if a MemoryStore is provided.
+    """
+    if memory is not None:
+        hints = memory.claim_guidelines_for_skill(skill_name)
+        if hints:
+            skill_doc = f"{skill_doc}\n\n--- MEMORY HINTS (from past runs) ---\n{hints}"
+
     builder = os.path.join(HERE, "_write_report.py")
     env = os.environ.copy()
     env["DATA_INPUT"] = json.dumps(data_payload)
     cmd = [
         "python3", VERIFIER_ORCH,
         "--target-script", builder,
-        "--skill-name", "demo-write-report",
+        "--skill-name", skill_name,
         "--skill-doc", skill_doc,
         "--intent", intent,
         "--max-attempts", str(max_attempts),
         "--strictness", "medium",
-        "--backend", "mock",
+        "--backend", os.environ.get("VERIFIER_BACKEND", "mock"),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=180)
     if proc.returncode not in (0, 1):
@@ -115,7 +125,8 @@ def run_verified_writer(*, data_payload: dict, skill_doc: str, intent: str,
     return json.loads(proc.stdout)
 
 
-def handle_write_report(bus: Bus, my_id: str, msg: dict) -> None:
+def handle_write_report(bus: Bus, my_id: str, msg: dict,
+                        memory: MemoryStore | None = None) -> None:
     payload = msg["payload"]
     conv_id = msg["conversation_id"]
     requester = msg["from_agent"]
@@ -167,7 +178,7 @@ def handle_write_report(bus: Bus, my_id: str, msg: dict) -> None:
     upstream_verification = beta_payload.get("verification")
     print(f"[gamma] beta status={beta_status} · using upstream data", flush=True)
 
-    # Step 3: verify my own work.
+    # Step 3: verify my own work (memory-consulting if a store is present).
     result = run_verified_writer(
         data_payload=upstream_data,
         skill_doc=(
@@ -176,7 +187,19 @@ def handle_write_report(bus: Bus, my_id: str, msg: dict) -> None:
         ),
         intent=intent,
         max_attempts=payload.get("max_attempts", 2),
+        memory=memory,
     )
+
+    # Learning step: store gap reports + reputation.
+    if memory is not None:
+        gap = result.get("verification", {}).get("gap_report")
+        if gap:
+            stored = memory.store_gap("demo-write-report", gap)
+            if stored:
+                print(f"[gamma] stored {len(stored)} gap memories for demo-write-report",
+                      flush=True)
+        success = result.get("verification", {}).get("status") == "verified"
+        memory.store_reputation(my_id, success)
 
     try:
         parsed_result = json.loads(result["result"])
@@ -234,9 +257,15 @@ def main() -> int:
     parser.add_argument("--serve-forever", action="store_true",
                         help="ignore --max-requests and --idle-timeout-sec; "
                              "run until SIGTERM/SIGINT")
+    parser.add_argument("--memory-db", default=os.environ.get("AGENT_MEMORY_DB", ""),
+                        help="path to a MemoryStore SQLite file; empty = no memory")
     args = parser.parse_args()
 
     bus = Bus(args.db)
+    memory = MemoryStore(args.memory_db) if args.memory_db else None
+    if memory is not None:
+        print(f"[gamma] memory: {args.memory_db} ({memory.count()} memories)", flush=True)
+
     bus.register(
         agent_id=args.my_id,
         name="Gamma",
@@ -274,7 +303,7 @@ def main() -> int:
             task = m["payload"].get("task")
             if task == "write_report":
                 try:
-                    handle_write_report(bus, args.my_id, m)
+                    handle_write_report(bus, args.my_id, m, memory=memory)
                     handled += 1
                 except Exception as e:
                     print(f"[gamma] error: {e}", flush=True)

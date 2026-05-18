@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Verifier Primitive — Design Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --bg-card: #FFFFFF;
+    --bg-subtle: #F2EFE8;
+    --ink: #16140F;
+    --ink-soft: #4A463E;
+    --ink-mute: #8A8578;
+    --rule: #E8E3D6;
+    --accent: #B8482E;
+    --accent-soft: #F4E4DA;
+    --teal: #2D6A6A;
+    --green: #2D5A1F;
+    --amber: #8B6914;
+    --red: #8B2914;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .container {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .container-wide {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  header.hero {
+    padding: 96px 0 64px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 64px;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+  }
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(48px, 7vw, 88px);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin-bottom: 32px;
+    font-variation-settings: "opsz" 144;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 300;
+  }
+  .deck {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: 620px;
+    font-weight: 300;
+    font-style: italic;
+  }
+  .meta {
+    margin-top: 48px;
+    display: flex;
+    gap: 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-mute);
+    letter-spacing: 0.05em;
+    flex-wrap: wrap;
+  }
+  .meta span strong { color: var(--ink-soft); font-weight: 500; }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 38px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    margin: 88px 0 8px;
+    color: var(--ink);
+  }
+  h2 .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 12px;
+    letter-spacing: 0.1em;
+  }
+  h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 1.3;
+    margin: 48px 0 16px;
+    color: var(--ink);
+  }
+  h4 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin: 32px 0 12px;
+  }
+  p {
+    margin-bottom: 20px;
+    color: var(--ink-soft);
+  }
+  p.lede {
+    font-size: 22px;
+    line-height: 1.55;
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    margin-bottom: 32px;
+  }
+  p.lede::first-letter {
+    font-size: 72px;
+    font-weight: 500;
+    float: left;
+    line-height: 0.85;
+    margin: 8px 12px 0 0;
+    color: var(--accent);
+  }
+  strong { color: var(--ink); font-weight: 600; }
+  em { font-style: italic; }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88em;
+    background: var(--bg-subtle);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* CALLOUT */
+  .callout {
+    background: var(--bg-subtle);
+    border-left: 3px solid var(--accent);
+    padding: 28px 32px;
+    margin: 32px 0;
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--ink);
+    font-style: italic;
+  }
+  .callout::before {
+    content: '"';
+    font-size: 48px;
+    color: var(--accent);
+    line-height: 0;
+    position: relative;
+    top: 16px;
+    margin-right: 6px;
+  }
+
+  /* CODE BLOCK */
+  pre.code {
+    background: #16140F;
+    color: #E8E3D6;
+    padding: 24px 28px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 24px 0;
+  }
+  pre.code .key { color: #F4B23A; }
+  pre.code .str { color: #A8D5A4; }
+  pre.code .num { color: #FF8B5F; }
+  pre.code .com { color: #6B6657; font-style: italic; }
+  pre.code .type { color: #87CEEB; }
+  pre.code .kw { color: #E94B7D; }
+
+  /* CLAIM TYPE GRID */
+  .claim-types {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin: 32px 0;
+  }
+  .claim-type {
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 24px;
+  }
+  .claim-type .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 12px;
+  }
+  .claim-type h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    color: var(--ink);
+    text-transform: none;
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+    font-weight: 500;
+  }
+  .claim-type p {
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0 0 12px;
+  }
+  .claim-type .example {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    background: var(--bg-subtle);
+    padding: 10px 12px;
+    border-radius: 3px;
+    line-height: 1.5;
+  }
+
+  /* DIAGRAM */
+  .flow-diagram {
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 40px;
+    margin: 32px 0;
+    text-align: center;
+  }
+  .flow-diagram svg { max-width: 100%; height: auto; }
+  .arch-caption {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-mute);
+    margin-top: 16px;
+  }
+
+  /* PARAM TABLE */
+  .params {
+    margin: 28px 0;
+    border-top: 1px solid var(--ink);
+  }
+  .param {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 24px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .param-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .param-name .ptype {
+    display: block;
+    color: var(--accent);
+    font-size: 11px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 400;
+  }
+  .param-name .pdefault {
+    display: block;
+    color: var(--ink-mute);
+    font-size: 11px;
+    margin-top: 2px;
+    font-weight: 400;
+  }
+  .param-desc {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .param-desc strong { color: var(--ink); }
+
+  /* FAILURE BLOCKS */
+  .failure {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 24px;
+    padding: 28px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .failure:last-child { border-bottom: 1px solid var(--rule); }
+  .failure-num {
+    font-family: 'Fraunces', serif;
+    font-size: 56px;
+    color: var(--accent);
+    line-height: 1;
+    font-weight: 300;
+  }
+  .failure h3 {
+    margin: 0 0 8px;
+    font-size: 22px;
+  }
+  .failure p { font-size: 15px; margin-bottom: 12px; }
+  .failure .mitigation {
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--ink);
+    margin-top: 12px;
+  }
+  .failure .mitigation strong {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* VERDICT PILLS */
+  .verdict {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-right: 6px;
+  }
+  .verdict.pass { background: #E8F0E5; color: var(--green); }
+  .verdict.fail { background: #F4DAD4; color: var(--red); }
+  .verdict.unv { background: #F4ECDA; color: var(--amber); }
+
+  /* OPEN QUESTIONS */
+  .open-q {
+    border-left: 2px solid var(--rule);
+    padding: 16px 0 16px 24px;
+    margin: 24px 0;
+  }
+  .open-q h4 {
+    font-family: 'Fraunces', serif;
+    color: var(--ink);
+    text-transform: none;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+    margin: 0 0 8px;
+  }
+  .open-q p { font-size: 15px; margin: 0; }
+
+  /* FOOTER */
+  footer {
+    margin-top: 120px;
+    padding: 64px 0;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-mute);
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  footer .line { margin-bottom: 8px; }
+  footer em {
+    color: var(--accent);
+    font-style: normal;
+  }
+
+  @media (max-width: 720px) {
+    .claim-types { grid-template-columns: 1fr; }
+    h2 { font-size: 30px; }
+    .meta { flex-direction: column; gap: 12px; }
+    .failure { grid-template-columns: 1fr; gap: 8px; }
+    .failure-num { font-size: 36px; }
+    .param { grid-template-columns: 1fr; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <div class="eyebrow">Design specification · No. 02</div>
+    <h1>The verifier <em>primitive.</em></h1>
+    <p class="deck">In-band claim validation for Hyperagent skills. Adversarial review that prevents bad output from reaching the user, and turns its own failures into permanent skill improvements.</p>
+    <div class="meta">
+      <span><strong>READ</strong> &nbsp;15 min</span>
+      <span><strong>STATUS</strong> &nbsp;Design — not yet implemented</span>
+      <span><strong>UPDATED</strong> &nbsp;2026·05·18</span>
+      <span><strong>RELATED</strong> &nbsp;Ref. No. 01 (Agent comms)</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <p class="lede">When a Hyperagent skill executes today, the result is taken at face value. The output goes back to the caller. If the skill did the wrong thing, said the wrong thing, or skipped a step — there is no second pair of eyes between the failure and the user. The verifier primitive is that second pair of eyes.</p>
+
+  <p>This document specifies the new tool, the contract between builder and verifier, the configuration of the verifier subagent, the gap-report flywheel that turns unverifiable claims into skill improvements, and the failure modes the implementation must defend against. It is written to be the design doc that precedes a build — concrete enough that an engineer can implement it, abstract enough to survive minor revision.</p>
+
+  <p>The verifier is not a replacement for rubrics. Rubrics score outputs <em>after</em> they ship — they generate eval data and surface patterns over many runs. The verifier runs <em>before</em> output ships and can refuse to ship it. They are complementary: verifier verdicts can themselves feed rubric data, but their jobs are different. Rubrics learn what good looks like. The verifier enforces it.</p>
+
+
+  <h2><span class="num">§ 01 — Motivation</span>The review gap</h2>
+
+  <p>Two constraints govern almost every agentic system: planning and reviewing. Hyperagent already has strong support for planning — the Working Doc, plan-mode, the discipline of writing checkbox tasks before execution. What it does not have is in-band review. When a skill returns a result, the orchestrator either trusts it or doesn't, but there is no separate process whose only job is to interrogate the result and either accept it or send it back.</p>
+
+  <p>The cost of this gap shows up in three places. <strong>First, silent wrong answers</strong> — a skill returns "success" but did something subtly off; the user finds out later, or never. <strong>Second, undocumented assumptions</strong> — skills accumulate implicit knowledge in their authors' heads that never makes it into the documentation, so the skill works for them and fails for everyone else. <strong>Third, accumulated drift</strong> — small misalignments between skill behavior and skill documentation compound over months until the docs are decorative.</p>
+
+  <p>The verifier closes all three. It catches silent wrong answers by re-deriving the result from independent evidence. It surfaces undocumented assumptions when it cannot verify something the skill apparently did. And it provides a continuous correction signal that keeps documentation honest.</p>
+
+  <div class="callout">A skill that has been verified one hundred times is not the same skill as one that has been executed one hundred times. The first has been pressure-tested; the second has been hoped about.</div>
+
+
+  <h2><span class="num">§ 02 — The primitive at a glance</span>Builder, verifier, gap report</h2>
+
+  <p>The verifier primitive is exposed as a single new tool, <code>RunSkillVerified</code>. It wraps the existing <code>RunWithCredentials</code> path. From the caller's perspective the surface area is small: pass the same arguments you would pass to <code>RunWithCredentials</code>, plus the user's plain-language intent and an optional verifier configuration. Get back the skill's result plus a verification record.</p>
+
+  <p>Behind the surface, a deliberate sequence unfolds. The skill runs. Its output, the user's intent, and the skill's own documentation are handed to a verifier subagent — a different model, different tool budget, different identity. The verifier decomposes what should be true into a list of atomic claims and validates each one with its own evidence-gathering. Three outcomes are possible per claim: pass, fail, unverifiable. The aggregate produces one of three verdicts at the run level: verified, failed, or partial.</p>
+
+  <p>On failure, the verifier composes a remediation prompt and the builder is re-invoked. On unverifiable claims, the verifier emits a gap report — a structured suggestion of what the skill's documentation should say so that next time, the same claim becomes verifiable. The gap report flows back into the existing <code>UpdateSkillAndScripts</code> draft flow, where the user reviews and accepts.</p>
+</main>
+
+<div class="container-wide">
+  <div class="flow-diagram">
+    <svg viewBox="0 0 940 360" xmlns="http://www.w3.org/2000/svg" style="max-width: 880px;">
+      <!-- Caller -->
+      <rect x="20" y="160" width="120" height="56" rx="4" fill="none" stroke="#16140F" stroke-width="1.5"/>
+      <text x="80" y="185" text-anchor="middle" font-family="Fraunces, serif" font-size="14" fill="#16140F" font-weight="500">Caller</text>
+      <text x="80" y="202" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">RunSkillVerified()</text>
+
+      <!-- Builder -->
+      <rect x="200" y="40" width="200" height="76" rx="4" fill="none" stroke="#B8482E" stroke-width="2"/>
+      <text x="300" y="68" text-anchor="middle" font-family="Fraunces, serif" font-size="16" fill="#16140F" font-weight="500">Builder</text>
+      <text x="300" y="86" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">RunWithCredentials</text>
+      <text x="300" y="102" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">model: builder_model</text>
+
+      <!-- Verifier -->
+      <rect x="200" y="240" width="200" height="76" rx="4" fill="none" stroke="#B8482E" stroke-width="2"/>
+      <text x="300" y="268" text-anchor="middle" font-family="Fraunces, serif" font-size="16" fill="#16140F" font-weight="500">Verifier</text>
+      <text x="300" y="286" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">independent subagent</text>
+      <text x="300" y="302" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">model: ≠ builder_model</text>
+
+      <!-- Caller to Builder -->
+      <line x1="140" y1="180" x2="200" y2="80" stroke="#16140F" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="160" y="130" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578" transform="rotate(-50 160 130)">execute</text>
+
+      <!-- Builder to Verifier -->
+      <line x1="300" y1="116" x2="300" y2="240" stroke="#16140F" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="310" y="180" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">output + intent + docs</text>
+
+      <!-- Verifier to Builder (re-prompt) -->
+      <path d="M 240 240 Q 160 180 240 116" fill="none" stroke="#B8482E" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow-orange)"/>
+      <text x="135" y="180" font-family="JetBrains Mono, monospace" font-size="9" fill="#B8482E">if FAIL: remediate</text>
+
+      <!-- Verifier to Caller -->
+      <path d="M 200 290 Q 100 290 80 216" fill="none" stroke="#16140F" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="80" y="270" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">if PASS: return</text>
+
+      <!-- Verifier to Gap Report -->
+      <line x1="400" y1="278" x2="510" y2="278" stroke="#16140F" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="430" y="270" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">unverifiable →</text>
+
+      <!-- Gap Report box -->
+      <rect x="510" y="240" width="160" height="76" rx="4" fill="#F4E4DA" stroke="#B8482E"/>
+      <text x="590" y="268" text-anchor="middle" font-family="Fraunces, serif" font-size="14" fill="#16140F" font-weight="500">Gap report</text>
+      <text x="590" y="286" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">structured suggestions</text>
+      <text x="590" y="300" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">for skill docs</text>
+
+      <!-- Gap to UpdateSkill -->
+      <line x1="670" y1="278" x2="760" y2="278" stroke="#16140F" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <!-- UpdateSkill -->
+      <rect x="760" y="240" width="160" height="76" rx="4" fill="none" stroke="#16140F" stroke-width="1.5"/>
+      <text x="840" y="268" text-anchor="middle" font-family="Fraunces, serif" font-size="14" fill="#16140F" font-weight="500">UpdateSkill</text>
+      <text x="840" y="286" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">draft card</text>
+      <text x="840" y="300" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">→ user accepts</text>
+
+      <!-- Skill Docs -->
+      <rect x="600" y="40" width="160" height="76" rx="4" fill="#F2EFE8" stroke="#E8E3D6" stroke-dasharray="3 3"/>
+      <text x="680" y="68" text-anchor="middle" font-family="Fraunces, serif" font-size="13" fill="#16140F" font-style="italic">skill documentation</text>
+      <text x="680" y="86" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">improves over time</text>
+      <text x="680" y="102" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">↑ next runs are stricter</text>
+
+      <!-- UpdateSkill to Docs -->
+      <path d="M 840 240 Q 840 160 760 100" fill="none" stroke="#16140F" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+      <!-- Docs feeds builder -->
+      <line x1="600" y1="78" x2="400" y2="78" stroke="#16140F" stroke-width="1" stroke-dasharray="2 3"/>
+
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#16140F"/>
+        </marker>
+        <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#B8482E"/>
+        </marker>
+      </defs>
+    </svg>
+    <div class="arch-caption">The full loop: caller invokes RunSkillVerified → builder produces output → verifier decomposes and validates → on fail, remediate; on unverifiable, draft skill-doc improvements via the existing UpdateSkillAndScripts flow. The flywheel is the dashed path back to documentation.</div>
+  </div>
+</div>
+
+<main class="container">
+
+
+  <h2><span class="num">§ 03 — Tool API</span>RunSkillVerified</h2>
+
+  <p>The new tool sits alongside <code>RunWithCredentials</code> in the skill execution family. Its signature is deliberately a small extension of what callers already know.</p>
+
+  <pre class="code"><span class="com">// Tool: RunSkillVerified</span>
+<span class="com">// Wraps RunWithCredentials with adversarial verification.</span>
+
+<span class="kw">interface</span> <span class="type">RunSkillVerifiedParams</span> {
+  <span class="key">skillName</span>: <span class="type">string</span>;          <span class="com">// same as RunWithCredentials</span>
+  <span class="key">command</span>: <span class="type">string</span>;            <span class="com">// same as RunWithCredentials</span>
+  <span class="key">intent</span>: <span class="type">string</span>;             <span class="com">// REQUIRED: user's goal in plain language</span>
+  <span class="key">verifier</span>?: {
+    <span class="key">model</span>?: <span class="type">string</span>;            <span class="com">// default: pick a different family than builder</span>
+    <span class="key">strictness</span>?: <span class="type">"low" | "medium" | "high"</span>;   <span class="com">// default: "medium"</span>
+    <span class="key">maxAttempts</span>?: <span class="type">number</span>;     <span class="com">// default: 2 (one build + one re-prompt)</span>
+    <span class="key">claimGuidelines</span>?: <span class="type">string</span>; <span class="com">// skill-specific decomposition hints</span>
+    <span class="key">budgetUsd</span>?: <span class="type">number</span>;       <span class="com">// default: 0.50 per attempt</span>
+    <span class="key">timeoutSec</span>?: <span class="type">number</span>;      <span class="com">// default: 120</span>
+  };
+}
+
+<span class="kw">interface</span> <span class="type">RunSkillVerifiedResult</span> {
+  <span class="key">result</span>: <span class="type">any</span>;                 <span class="com">// the skill's final output</span>
+  <span class="key">attempts</span>: <span class="type">number</span>;             <span class="com">// how many builder invocations</span>
+  <span class="key">verification</span>: {
+    <span class="key">status</span>: <span class="type">"verified" | "failed" | "partial"</span>;
+    <span class="key">claims</span>: <span class="type">Claim[]</span>;          <span class="com">// every claim with its verdict</span>
+    <span class="key">gapReport</span>?: <span class="type">GapReport</span>;     <span class="com">// present iff unverifiable claims exist</span>
+    <span class="key">verifierModel</span>: <span class="type">string</span>;
+    <span class="key">durationMs</span>: <span class="type">number</span>;
+    <span class="key">costUsd</span>: <span class="type">number</span>;
+  };
+}</pre>
+
+  <h4>Parameter detail</h4>
+  <div class="params">
+    <div class="param">
+      <div class="param-name">intent
+        <span class="ptype">required · string</span>
+      </div>
+      <div class="param-desc"><strong>The user's plain-language goal.</strong> Not the prompt to the skill — the underlying goal. The verifier uses this to know what "correct" actually means. Without it, the verifier can only check internal consistency, not whether the skill did the right thing. Example: <code>"create a payment intent for the new annual plan that succeeds in test mode"</code>.</div>
+    </div>
+    <div class="param">
+      <div class="param-name">verifier.model
+        <span class="ptype">optional · string</span>
+        <span class="pdefault">default: cross-family</span>
+      </div>
+      <div class="param-desc">Which model runs the verifier. The default rule is <strong>different family from the builder</strong> — if the builder is on Opus, the verifier defaults to GPT or Gemini. The point is independent failure modes. If the builder and verifier are the same model, the verifier becomes a sycophant.</div>
+    </div>
+    <div class="param">
+      <div class="param-name">verifier.strictness
+        <span class="ptype">"low" / "medium" / "high"</span>
+        <span class="pdefault">default: medium</span>
+      </div>
+      <div class="param-desc">How many claims the verifier should produce per output. <strong>low</strong> ≈ 3-5 claims, structural only. <strong>medium</strong> ≈ 5-10 claims, structural + behavioral. <strong>high</strong> ≈ 10+ claims, all five types. Strictness can be set per skill in skill metadata so the caller doesn't have to specify every time.</div>
+    </div>
+    <div class="param">
+      <div class="param-name">verifier.maxAttempts
+        <span class="ptype">number</span>
+        <span class="pdefault">default: 2</span>
+      </div>
+      <div class="param-desc">Maximum total builder invocations including the first. <strong>Default 2</strong>: one build, one remediation attempt if the first fails. Setting to 1 disables remediation; the verifier only reports. Setting above 3 is generally a sign that the skill is broken and re-prompting won't save it — better to surface the failure.</div>
+    </div>
+    <div class="param">
+      <div class="param-name">verifier.claimGuidelines
+        <span class="ptype">optional · string</span>
+      </div>
+      <div class="param-desc">Free-form text appended to the verifier's system prompt with skill-specific decomposition hints. For a Stripe payment skill, this might be <em>"always check that the customer ID in the response matches the one in the request"</em>. Often lives in skill metadata once stabilized.</div>
+    </div>
+    <div class="param">
+      <div class="param-name">verifier.budgetUsd
+        <span class="ptype">number</span>
+        <span class="pdefault">default: 0.50</span>
+      </div>
+      <div class="param-desc">Hard cap on verifier cost per builder attempt. The verifier may make tool calls (read files, hit read-only APIs) — this limits the blast radius if the verifier's evidence gathering goes long. On overrun, verification ends; remaining claims are marked <code>unverifiable</code> with reason <em>budget exceeded</em>.</div>
+    </div>
+    <div class="param">
+      <div class="param-name">verifier.timeoutSec
+        <span class="ptype">number</span>
+        <span class="pdefault">default: 120</span>
+      </div>
+      <div class="param-desc">Wall-clock timeout per verification pass. Same failure semantics as budget overrun.</div>
+    </div>
+  </div>
+
+
+  <h2><span class="num">§ 04 — The claim contract</span>What gets verified, and how</h2>
+
+  <p>A <strong>claim</strong> is a single, independently testable assertion about the skill's output, its side effects, or the world the skill touched. Claims are the unit of verification. The whole architecture turns on getting them right: too coarse and you cannot pinpoint what failed; too fine and the verifier spends its budget on trivia.</p>
+
+  <p>Every claim has the same shape, regardless of type:</p>
+
+  <pre class="code"><span class="kw">interface</span> <span class="type">Claim</span> {
+  <span class="key">id</span>: <span class="type">string</span>;                 <span class="com">// e.g. "claim_001"</span>
+  <span class="key">type</span>: <span class="type">ClaimType</span>;              <span class="com">// see below</span>
+  <span class="key">statement</span>: <span class="type">string</span>;          <span class="com">// human-readable assertion</span>
+  <span class="key">evidenceRequired</span>: <span class="type">string</span>;   <span class="com">// what would prove this true</span>
+  <span class="key">evidenceCollected</span>?: <span class="type">any</span>;    <span class="com">// what the verifier actually saw</span>
+  <span class="key">verdict</span>: <span class="type">"pass" | "fail" | "unverifiable"</span>;
+  <span class="key">confidence</span>: <span class="type">number</span>;          <span class="com">// 0–1</span>
+  <span class="key">reasoning</span>: <span class="type">string</span>;          <span class="com">// why the verifier chose this verdict</span>
+}</pre>
+
+  <p>There are five claim types. Most outputs have a mix of two or three. The five exist because different verdicts require different evidence-gathering strategies, and the verifier prompt needs to know which strategy to apply.</p>
+
+  <div class="claim-types">
+    <div class="claim-type">
+      <span class="tag">Existential</span>
+      <h4>Existential</h4>
+      <p>Asserts that a thing exists. Resource, file, record, artifact. Cheapest to verify — single read.</p>
+      <div class="example">statement: "the file at /workspace/report.pdf exists"<br>evidence: stat(path) returns ok</div>
+    </div>
+    <div class="claim-type">
+      <span class="tag">Structural</span>
+      <h4>Structural</h4>
+      <p>Asserts that a thing has a specific shape. Schema match, field presence, type correctness. Verified by parsing.</p>
+      <div class="example">statement: "the JSON has field 'customer_id' of type string"<br>evidence: parsed[customer_id] is string</div>
+    </div>
+    <div class="claim-type">
+      <span class="tag">Behavioral</span>
+      <h4>Behavioral</h4>
+      <p>Asserts that a thing does something. Function returns X for input Y. Most expensive — requires execution.</p>
+      <div class="example">statement: "GET /api/users/42 returns 200"<br>evidence: actual HTTP call, status 200</div>
+    </div>
+    <div class="claim-type">
+      <span class="tag">Factual</span>
+      <h4>Factual</h4>
+      <p>Asserts that something is true about the world. Citation, date, name, identifier. Verified against an authoritative source.</p>
+      <div class="example">statement: "the company HQ is in Tallinn"<br>evidence: official website / corp registry</div>
+    </div>
+    <div class="claim-type">
+      <span class="tag">Semantic</span>
+      <h4>Semantic</h4>
+      <p>Asserts that the output <em>means</em> what was asked. Intent alignment. Hardest to make objective — verifier judges, with reasoning.</p>
+      <div class="example">statement: "the report addresses the user's question about Q2 churn"<br>evidence: reading the report, mapping to intent</div>
+    </div>
+    <div class="claim-type">
+      <span class="tag">Negative</span>
+      <h4>Negative (optional)</h4>
+      <p>Asserts that something did <em>not</em> happen. PII leaked. Wrong endpoint called. Sensitive field exposed. Verified by absence.</p>
+      <div class="example">statement: "no PII fields appear in the response body"<br>evidence: scan for SSN, email, phone — none found</div>
+    </div>
+  </div>
+
+  <h4>How claims are produced</h4>
+  <p>The verifier subagent receives three inputs and produces the claim list itself: the skill's documentation (what is this skill supposed to do?), the user's intent (what did the user actually want?), and the builder's output (what happened?). It is explicitly instructed to produce claims as the <strong>intersection of "what the skill promised" and "what the user asked for"</strong>. Claims that fall outside both are noise.</p>
+
+  <p>Strictness governs how many claims to produce. A <em>medium</em>-strictness verification of a Stripe payment skill might yield: one existential (PaymentIntent exists), three structural (id format, amount type, currency code), two behavioral (test mode flag respected, idempotency key honored), and one negative (no live-mode keys in the response). Seven claims, seven verdicts, one aggregate verdict.</p>
+
+  <p>The aggregate rule is conservative. <strong>verified</strong> requires all claims pass. <strong>failed</strong> requires at least one claim fail. <strong>partial</strong> means no failures but at least one unverifiable. Partial verifications return the skill's output but flag the gap and produce a gap report.</p>
+
+
+  <h2><span class="num">§ 05 — Verifier configuration</span>How the subagent is set up</h2>
+
+  <p>The verifier runs as an isolated subagent spawned through the existing Agent tool. It is not a free-form conversation. It receives a structured prompt, a restricted toolset, a budget, and a contract for its output format. Everything about the verifier is set up to produce <em>independent evidence</em>, not consensus.</p>
+
+  <h4>Identity &amp; model</h4>
+  <p>The subagent description follows the existing convention: <code>Name | Role | Task</code>. For verifications, a recommended name is something neutral and observant — <em>Sentinel</em>, <em>Veritas</em>, <em>Lens</em>. Example: <code>Sentinel | Claim Verifier | Validate the output of stripe.create_payment_intent against the user's intent</code>.</p>
+  <p>Model selection follows the cross-family default unless overridden. A useful pairing matrix:</p>
+
+  <pre class="code"><span class="com">// Recommended verifier pairings</span>
+builder: opus      → verifier: gpt-5.5  | gemini-pro
+builder: gpt-5.5   → verifier: opus     | claude-sonnet
+builder: sonnet    → verifier: opus     | gpt-5.5
+builder: haiku     → verifier: sonnet   <span class="com">// for cheap, opt-in</span></pre>
+
+  <h4>Tool budget</h4>
+  <p>The verifier has a <strong>read-only toolset</strong>. It can:</p>
+  <ul style="margin: 16px 0 24px 24px; color: var(--ink-soft);">
+    <li style="margin-bottom: 6px;">Read files (<code>Read</code>, <code>Glob</code>, <code>Grep</code>)</li>
+    <li style="margin-bottom: 6px;">Search the web for factual claims (<code>WebSearch</code>, <code>ExaSearch</code>)</li>
+    <li style="margin-bottom: 6px;">Call read-only integration actions (GETs on connected services)</li>
+    <li style="margin-bottom: 6px;">Inspect the skill's documentation (<code>GetKnowledgeDetails</code>)</li>
+  </ul>
+  <p>It <strong>cannot</strong>:</p>
+  <ul style="margin: 16px 0 24px 24px; color: var(--ink-soft);">
+    <li style="margin-bottom: 6px;">Write or edit files</li>
+    <li style="margin-bottom: 6px;">Execute scripts (<code>RunWithCredentials</code>, <code>Bash</code> with side effects)</li>
+    <li style="margin-bottom: 6px;">Call mutating integration actions (POST / PUT / DELETE)</li>
+    <li style="margin-bottom: 6px;">Spawn further subagents</li>
+    <li style="margin-bottom: 6px;">Use <code>RunSkillVerified</code> — no recursive verification</li>
+  </ul>
+  <p>Restricting the verifier to reads is what makes the architecture safe. The verifier can investigate but cannot change the world, which means a misbehaving verifier degrades to noise rather than damage.</p>
+
+  <h4>System prompt skeleton</h4>
+  <pre class="code"><span class="com">You are the verifier. You did not run the skill.
+You have NOT seen the user's chat. You have received:
+
+  - the skill's documentation
+  - the user's plain-language intent
+  - the skill's output
+
+Your job is to decompose what should be true into a list of
+atomic claims and produce a verdict for each. You are not
+trying to be helpful. You are trying to be RIGHT.
+
+You produce claims as the intersection of:
+  (a) what the skill's documentation says it does, AND
+  (b) what the user's intent says they wanted.
+
+Claims outside both are noise. Do not produce them.
+
+For each claim:
+  - state it precisely
+  - state what evidence would prove it
+  - gather that evidence using your read-only tools
+  - render a verdict: pass, fail, or unverifiable
+  - confidence and reasoning are mandatory
+
+If a claim is unverifiable, that is a finding, not a failure.
+Report it with: WHY you cannot verify it, and WHAT the skill
+documentation would need to say for it to become verifiable
+next time. This becomes the gap report.
+
+Strictness target: {LOW|MED|HIGH} — produce N±2 claims.</span></pre>
+
+
+  <h2><span class="num">§ 06 — The remediation loop</span>What happens on failure</h2>
+
+  <p>If the verifier returns <code>failed</code> and <code>attempts &lt; maxAttempts</code>, the builder is re-invoked with a <strong>structured remediation prompt</strong>. This is not "try again". It is targeted, claim-by-claim feedback.</p>
+
+  <pre class="code"><span class="com">// Remediation prompt template</span>
+
+Your previous output was reviewed by an independent verifier.
+The following claims FAILED:
+
+{for each failed claim:}
+  - {claim.statement}
+    Why it failed: {claim.reasoning}
+    Evidence the verifier saw: {claim.evidenceCollected}
+    What needs to change: {derived from claim type}
+
+The following claims could NOT be verified:
+
+{for each unverifiable claim:}
+  - {claim.statement}
+    Why not: {claim.reasoning}
+    {if relevant: what additional information you should include}
+
+Run the skill again. Do not change the user's original request.
+Address each failed claim. For unverifiable claims, include
+the evidence the verifier would need to validate them.
+
+Original command: {original.command}
+Original intent: {original.intent}</pre>
+
+  <p>The builder runs again. The output is verified again. If <code>failed</code> persists past <code>maxAttempts</code>, the tool returns the latest output with <code>status: failed</code>, the verification record, and an exception-style flag. The caller decides whether to surface this to the user, escalate to a human channel, or fall back to a different strategy.</p>
+
+  <p>The remediation loop is deliberately bounded. Two attempts is the default because a skill that fails twice on the same claim is almost certainly not going to pass on the third. The right response is to surface the failure, not to keep spending. The exception is calibrated experimentation — for skills under active development, a higher <code>maxAttempts</code> is fine; the failure pattern itself is data.</p>
+
+
+  <h2><span class="num">§ 07 — The gap-report flywheel</span>How unverifiable claims become skill improvements</h2>
+
+  <p>The most distinctive part of the verifier primitive is what happens to claims marked <code>unverifiable</code>. These are not failures — they are documentation gaps. Some examples of legitimate unverifiables:</p>
+  <ul style="margin: 16px 0 24px 24px; color: var(--ink-soft);">
+    <li style="margin-bottom: 8px;"><em>"The skill is supposed to deduct sales tax, but I cannot confirm from the output whether tax was applied or not — the skill's response shape doesn't surface it."</em></li>
+    <li style="margin-bottom: 8px;"><em>"The skill should be idempotent on the user's request key, but the documentation does not specify which field carries the key — I cannot test idempotency."</em></li>
+    <li style="margin-bottom: 8px;"><em>"The skill returned an artifact ID but I have no way to confirm that ID corresponds to the file the user asked for — there's no naming convention documented."</em></li>
+  </ul>
+
+  <p>Each of these is a real, latent problem in the skill itself. The verifier names it. The gap report packages it.</p>
+
+  <pre class="code"><span class="kw">interface</span> <span class="type">GapReport</span> {
+  <span class="key">skillId</span>: <span class="type">string</span>;
+  <span class="key">unverifiableClaims</span>: <span class="type">Claim[]</span>;
+  <span class="key">proposedImprovements</span>: <span class="type">Improvement[]</span>;
+  <span class="key">summary</span>: <span class="type">string</span>;        <span class="com">// 1-2 sentences for the user</span>
+}
+
+<span class="kw">interface</span> <span class="type">Improvement</span> {
+  <span class="key">claimId</span>: <span class="type">string</span>;        <span class="com">// which claim this addresses</span>
+  <span class="key">target</span>: <span class="type">"documentation" | "output_schema" | "script"</span>;
+  <span class="key">currentText</span>?: <span class="type">string</span>;    <span class="com">// what's there now (if any)</span>
+  <span class="key">proposedText</span>: <span class="type">string</span>;    <span class="com">// what should be added/changed</span>
+  <span class="key">rationale</span>: <span class="type">string</span>;       <span class="com">// why this would help</span>
+  <span class="key">confidence</span>: <span class="type">number</span>;       <span class="com">// 0–1, gates auto-surfacing</span>
+}</pre>
+
+  <p>The gap report flows into Hyperagent's existing <strong>draft-card</strong> flow. It does <em>not</em> auto-apply. The implementation auto-generates a <code>UpdateSkillAndScripts</code> call with <code>saveMode: "draft"</code>, populated with the proposed documentation additions or schema changes. The user sees the inline draft card — same flow they already know — reviews the suggestion, edits if needed, and accepts or rejects.</p>
+
+  <p>This matters because the gap-report flywheel is only as good as the discipline that keeps low-quality suggestions out of the skill. The draft card is the gate. Confidence-gated emission (e.g. <code>confidence &gt;= 0.7</code>) keeps the volume manageable. A skill that's seen heavy use accumulates a steady, curated stream of improvements; a skill that's barely used produces few suggestions because it's barely producing claims to be unverifiable about.</p>
+
+  <div class="callout">A skill improves itself by being asked questions it can't answer. The verifier asks the questions; the gap report names them; the user decides whether to make them answerable next time.</div>
+
+
+  <h2><span class="num">§ 08 — Failure modes</span>What breaks, and how we defend</h2>
+
+  <p>The verifier primitive introduces its own failure modes on top of the ones inherent to the skill it wraps. The implementation must defend against all six.</p>
+
+  <div class="failure">
+    <div class="failure-num">01</div>
+    <div>
+      <h3>Infinite remediation loops</h3>
+      <p>Builder fails. Verifier remediates. Builder fails the same way. Verifier remediates again. The loop never converges; the budget burns.</p>
+      <div class="mitigation"><strong>Mitigation</strong>Hard cap via <code>maxAttempts</code> (default 2). Per-attempt budget cap via <code>budgetUsd</code>. On exhaustion, return latest output with <code>status: failed</code> and the verification record — the caller decides what to do. Same-claim-failure detection: if the same claim ID fails twice with the same reasoning, mark the skill as <em>structurally broken</em> for this intent and skip further attempts.</div>
+    </div>
+  </div>
+
+  <div class="failure">
+    <div class="failure-num">02</div>
+    <div>
+      <h3>Verifier hallucination</h3>
+      <p>The verifier rejects valid output. It claims the JSON is missing a field that is actually there, or that an API returned 500 when it returned 200. Worse, it does this confidently. The user sees a false rejection.</p>
+      <div class="mitigation"><strong>Mitigation</strong>Mandatory <code>evidenceCollected</code> on every <code>fail</code> verdict — the verifier must show its work. Logged evidence is auditable; the user can see exactly what the verifier saw and judge whether the verdict was fair. Periodic offline rubric-based evals on a sample of verifications spot patterns of false rejection. Confidence threshold: failures with confidence below 0.6 are downgraded to <code>unverifiable</code> with a flag.</div>
+    </div>
+  </div>
+
+  <div class="failure">
+    <div class="failure-num">03</div>
+    <div>
+      <h3>Claim decomposition collapse</h3>
+      <p>The verifier produces one vague claim — <em>"the output looks correct"</em> — instead of the seven specific claims it should have. The verdict is structurally meaningless. Worst case, it always passes; the verifier becomes ceremonial.</p>
+      <div class="mitigation"><strong>Mitigation</strong>Minimum claim count enforced by strictness level: low ≥ 3, medium ≥ 5, high ≥ 10. Verifier output is validated against schema before being accepted; a sub-minimum count triggers a single retry with stricter prompting; a second sub-minimum count marks the verification as <em>degenerate</em> and surfaces a warning. The skill's <code>claimGuidelines</code> field is the place to fix this once observed.</div>
+    </div>
+  </div>
+
+  <div class="failure">
+    <div class="failure-num">04</div>
+    <div>
+      <h3>Same-family bias</h3>
+      <p>Builder and verifier are both Opus. They share training data, share failure modes, agree on wrong answers. The verifier is technically independent but functionally identical. False confidence everywhere.</p>
+      <div class="mitigation"><strong>Mitigation</strong>Cross-family default is enforced unless explicitly overridden, with a warning logged when overridden. Where cross-family is not possible (cost, availability), at minimum cross-prompt: the verifier's system prompt is structurally different from the builder's, with explicit instruction to disagree with the builder when evidence supports it.</div>
+    </div>
+  </div>
+
+  <div class="failure">
+    <div class="failure-num">05</div>
+    <div>
+      <h3>Gap-report noise</h3>
+      <p>Every verification produces a slew of low-quality skill-doc suggestions. The user is buried under draft cards. They start ignoring them. The flywheel that was supposed to improve the skill becomes a source of friction.</p>
+      <div class="mitigation"><strong>Mitigation</strong>Confidence gate on <code>Improvement</code> emission — default 0.7, configurable per skill. Same-suggestion deduplication: if the same proposed improvement appears across three verifications for the same skill, it is upgraded in priority and surfaced as a single card with the count, not three. The user can <em>silence</em> a class of suggestion for a skill, and the silence is honored.</div>
+    </div>
+  </div>
+
+  <div class="failure">
+    <div class="failure-num">06</div>
+    <div>
+      <h3>Verifier latency dominates</h3>
+      <p>The skill takes 4 seconds. The verifier takes 30. Users feel the wrap is the cost, and start setting <code>maxAttempts: 1</code> or disabling verification — losing the value that the primitive was supposed to deliver.</p>
+      <div class="mitigation"><strong>Mitigation</strong>Parallelize claim verification — claims are independent by construction, so the verifier evaluates them concurrently rather than serially. Aggressive caching of evidence collection (the same <code>GET /api/users/42</code> doesn't re-run within a verification pass). Surface verification cost and time in the result so callers can tune. Async mode for very long verifications: <code>RunSkillVerified</code> returns the builder's output immediately and verifies in the background, posting a follow-up card if the verification flags something.</div>
+    </div>
+  </div>
+
+
+  <h2><span class="num">§ 09 — What's deferred</span>Open questions for v1</h2>
+
+  <p>Some interesting questions don't need answers before the first build. Listing them so they don't get rediscovered as bugs.</p>
+
+  <div class="open-q">
+    <h4>Multi-skill verification</h4>
+    <p>If a high-level task chains three skills together, does the verifier wrap each call or the whole chain? V1 answer: each call. V2 might support chain-level verification with cross-skill claims.</p>
+  </div>
+
+  <div class="open-q">
+    <h4>Human-in-the-loop verification</h4>
+    <p>For high-stakes skills (anything that moves money, deletes records, posts publicly), should the verifier route to a human for one or more claims? V1: no — verifier is fully automated. The pattern exists as a future extension via a special claim type <code>human_attestation</code>.</p>
+  </div>
+
+  <div class="open-q">
+    <h4>Verifier of verifiers</h4>
+    <p>Who watches the watchers? V1 says rubric-based offline eval is sufficient — sample verifications and score the verifier's verdicts. No live nested verification. The recursive case is explicitly disallowed (no <code>RunSkillVerified</code> from inside a verifier).</p>
+  </div>
+
+  <div class="open-q">
+    <h4>Per-skill verifier defaults</h4>
+    <p>Eventually the skill metadata should carry default verifier configuration: model preference, strictness, <code>claimGuidelines</code>, cost cap. V1 supports skill-metadata defaults but doesn't require them — every skill can be verified with the global defaults out of the box.</p>
+  </div>
+
+  <div class="open-q">
+    <h4>Streaming verification</h4>
+    <p>For long-running skills that produce intermediate output, the verifier could verify incrementally rather than wait for completion. V1: no streaming. Verification is end-of-skill only. Streaming is a natural follow-on once the synchronous version is stable.</p>
+  </div>
+
+  <div class="open-q">
+    <h4>Integration with rubrics</h4>
+    <p>Verifier verdicts are themselves a signal — they should feed Hyperagent's rubric/eval system as training data for skill quality scoring. V1 logs verifications in a structured form; the rubric integration is a separate workstream.</p>
+  </div>
+
+
+  <h2><span class="num">§ 10 — Summary</span>What v1 ships</h2>
+
+  <p>The minimum first version is bounded. Six things, no more:</p>
+  <ol style="margin: 16px 0 24px 24px; color: var(--ink-soft); padding-left: 12px;">
+    <li style="margin-bottom: 10px;">The <code>RunSkillVerified</code> tool with the API specified in §03.</li>
+    <li style="margin-bottom: 10px;">The five-claim-type contract from §04, with <code>negative</code> as optional.</li>
+    <li style="margin-bottom: 10px;">A verifier subagent spawned via the Agent tool, with the read-only toolset from §05 and cross-family model default.</li>
+    <li style="margin-bottom: 10px;">The bounded remediation loop from §06, <code>maxAttempts</code> default 2.</li>
+    <li style="margin-bottom: 10px;">The gap report → <code>UpdateSkillAndScripts</code> draft-card flow from §07, with confidence gating at 0.7.</li>
+    <li style="margin-bottom: 10px;">Defenses for all six failure modes from §08.</li>
+  </ol>
+
+  <p>Everything in §09 is deferred. The aim of v1 is to prove the primitive works, not to make it universal. Two well-chosen pilot skills — one synchronous and predictable (e.g. a Stripe operation), one less so (e.g. a research task) — would surface most of the edge cases before scaling to the rest of the catalog.</p>
+
+  <div class="callout">The verifier doesn't make skills smarter. It makes the gap between what a skill claims and what it does visible — and gives that visibility a place to land. Over time the skills get better not because they were rewritten, but because their documentation finally tells the truth.</div>
+
+</main>
+
+<footer>
+  <div class="line">Design specification · No. 02 · <em>The verifier primitive</em></div>
+  <div class="line">Companion to Reference No. 01 — Agents talking to agents.</div>
+</footer>
+
+</body>
+</html>

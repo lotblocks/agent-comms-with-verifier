@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Composed System — Bus + Verifier in Action</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --bg-card: #FFFFFF;
+    --bg-subtle: #F2EFE8;
+    --ink: #16140F;
+    --ink-soft: #4A463E;
+    --ink-mute: #8A8578;
+    --rule: #E8E3D6;
+    --accent: #B8482E;
+    --accent-soft: #F4E4DA;
+    --teal: #2D6A6A;
+    --green: #2D5A1F;
+    --amber: #8B6914;
+    --blue: #2B4E7A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 740px; margin: 0 auto; padding: 0 32px; }
+  .container-wide { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+
+  /* HERO */
+  header.hero { padding: 96px 0 64px; border-bottom: 1px solid var(--rule); margin-bottom: 64px; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
+    margin-bottom: 32px;
+  }
+  h1 {
+    font-family: 'Fraunces', Georgia, serif; font-weight: 400;
+    font-size: clamp(48px, 7vw, 88px); line-height: 1.02;
+    letter-spacing: -0.025em; margin-bottom: 32px;
+    font-variation-settings: "opsz" 144;
+  }
+  h1 em { font-style: italic; color: var(--accent); font-weight: 300; }
+  .deck {
+    font-family: 'Fraunces', serif; font-size: 22px; line-height: 1.5;
+    color: var(--ink-soft); max-width: 620px; font-weight: 300; font-style: italic;
+  }
+  .meta {
+    margin-top: 48px; display: flex; gap: 32px; flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--ink-mute); letter-spacing: 0.05em;
+  }
+  .meta span strong { color: var(--ink-soft); font-weight: 500; }
+
+  h2 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 38px; line-height: 1.15; letter-spacing: -0.015em;
+    margin: 88px 0 8px; color: var(--ink);
+  }
+  h2 .num {
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    color: var(--accent); display: block; margin-bottom: 12px;
+    letter-spacing: 0.1em;
+  }
+  h3 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 24px; line-height: 1.3; margin: 48px 0 16px; color: var(--ink);
+  }
+  p { margin-bottom: 20px; color: var(--ink-soft); }
+  p.lede {
+    font-size: 22px; line-height: 1.55; color: var(--ink);
+    font-family: 'Fraunces', serif; font-weight: 400; margin-bottom: 32px;
+  }
+  p.lede::first-letter {
+    font-size: 72px; font-weight: 500; float: left; line-height: 0.85;
+    margin: 8px 12px 0 0; color: var(--accent);
+  }
+  strong { color: var(--ink); font-weight: 600; }
+  em { font-style: italic; }
+  code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.88em;
+    background: var(--bg-subtle); padding: 2px 6px; border-radius: 3px; color: var(--ink);
+  }
+
+  /* RECOMMENDATION BOX */
+  .recommendation {
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 6px;
+    padding: 40px 44px;
+    margin: 32px 0 48px;
+  }
+  .recommendation .label {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .recommendation h3 {
+    color: var(--bg); margin: 0 0 16px; font-size: 26px;
+  }
+  .recommendation p { color: #C5C0B0; margin-bottom: 12px; font-size: 16px; }
+  .recommendation p:last-child { margin-bottom: 0; }
+  .recommendation strong { color: var(--bg); }
+  .recommendation code {
+    background: #2D2A22; color: #F4B23A; border: none;
+  }
+
+  /* DIAGRAM CARDS */
+  .diagram {
+    background: var(--bg-card); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 40px 36px; margin: 32px 0; text-align: center;
+  }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram-caption {
+    font-family: 'Fraunces', serif; font-style: italic;
+    font-size: 14px; color: var(--ink-mute); margin-top: 20px;
+    line-height: 1.5;
+  }
+
+  /* PROS GRID */
+  .pros {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 24px; margin: 40px 0;
+  }
+  .pro {
+    background: var(--bg-card); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 28px;
+  }
+  .pro .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent); margin-bottom: 12px;
+  }
+  .pro h4 {
+    font-family: 'Fraunces', serif; font-size: 20px;
+    font-weight: 500; color: var(--ink);
+    margin: 0 0 10px; letter-spacing: -0.01em;
+  }
+  .pro p {
+    font-size: 15px; line-height: 1.6; margin: 0;
+  }
+
+  /* STEP-BY-STEP WALKTHROUGH */
+  .steps { margin: 32px 0; }
+  .step {
+    display: grid; grid-template-columns: 80px 1fr; gap: 28px;
+    padding: 24px 0; border-bottom: 1px solid var(--rule);
+  }
+  .step:first-child { border-top: 1px solid var(--rule); }
+  .step-num {
+    font-family: 'Fraunces', serif; font-size: 44px;
+    color: var(--accent); font-weight: 300; line-height: 1;
+  }
+  .step-body h4 {
+    font-family: 'Fraunces', serif; font-size: 20px;
+    color: var(--ink); margin: 0 0 8px; font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .step-body p { font-size: 15px; line-height: 1.6; margin: 0 0 8px; }
+  .step-body .who {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent); margin-bottom: 8px;
+  }
+
+  /* CALLOUT */
+  .callout {
+    background: var(--bg-subtle); border-left: 3px solid var(--accent);
+    padding: 28px 32px; margin: 32px 0;
+    font-family: 'Fraunces', serif; font-size: 18px;
+    line-height: 1.55; color: var(--ink); font-style: italic;
+  }
+  .callout::before {
+    content: '"'; font-size: 48px; color: var(--accent);
+    line-height: 0; position: relative; top: 16px; margin-right: 6px;
+  }
+
+  /* CODE BLOCK */
+  pre.code {
+    background: #16140F; color: #E8E3D6;
+    padding: 24px 28px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    line-height: 1.6; overflow-x: auto; margin: 24px 0;
+  }
+  pre.code .key { color: #F4B23A; }
+  pre.code .str { color: #A8D5A4; }
+  pre.code .com { color: #6B6657; font-style: italic; }
+  pre.code .num { color: #FF8B5F; }
+
+  /* WHAT THIS ISN'T */
+  .limit {
+    border-left: 2px solid var(--rule);
+    padding: 12px 0 12px 20px;
+    margin: 20px 0;
+  }
+  .limit h4 {
+    font-family: 'Fraunces', serif; font-size: 17px;
+    color: var(--ink); margin: 0 0 6px; font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .limit p { font-size: 15px; margin: 0; }
+
+  /* FOOTER */
+  footer {
+    margin-top: 120px; padding: 64px 0; border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--ink-mute); letter-spacing: 0.05em; text-align: center;
+  }
+  footer .line { margin-bottom: 8px; }
+  footer em { color: var(--accent); font-style: normal; }
+
+  @media (max-width: 720px) {
+    .pros { grid-template-columns: 1fr; }
+    h2 { font-size: 30px; }
+    .meta { flex-direction: column; gap: 12px; }
+    .step { grid-template-columns: 1fr; gap: 8px; }
+    .step-num { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <div class="eyebrow">Reference architecture · No. 03</div>
+    <h1>The composed <em>system.</em></h1>
+    <p class="deck">Two primitives, one substrate. The message bus carries the conversation between agents; the verifier sits inside each worker, gating every reply. Together they're a working model for trustworthy multi-agent systems.</p>
+    <div class="meta">
+      <span><strong>READ</strong> 12 min</span>
+      <span><strong>STATUS</strong> Working code, demo green</span>
+      <span><strong>UPDATED</strong> 2026·05·18</span>
+      <span><strong>SERIES</strong> Ref. 01 + 02 → 03</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <p class="lede">Reference No. 01 designed the bus — how agents address each other and exchange messages without a conductor. Reference No. 02 designed the verifier — how a worker's output gets adversarially reviewed before it ships. This piece is what happens when you put them together, and what you should actually do next.</p>
+
+
+  <h2><span class="num">§ 01 — Recommendation</span>What to do, in three moves</h2>
+
+  <div class="recommendation">
+    <div class="label">The opinionated answer</div>
+    <h3>Treat them as two independent skills that compose</h3>
+    <p><strong>Move 1:</strong> save the existing <code>verifier</code> skill draft. Then run an update to add the LLM backend and declare <code>ANTHROPIC_API_KEY</code> as a credential. One follow-up turn; nothing exotic.</p>
+    <p><strong>Move 2:</strong> save the bus and the two demo agents as a second skill — <code>agent-bus</code>. The bus is genuinely reusable across many setups; it shouldn't be a private implementation detail of the verifier.</p>
+    <p><strong>Move 3:</strong> use them together by convention, not by glue code. Every worker agent calls the verifier on its own output before publishing. The bus carries the verification record as part of the response payload. Receivers read <code>verification.status</code> to decide whether to trust the answer.</p>
+    <p>That's the entire integration. Not a third skill, not a coupling layer, not a framework — just two clean primitives and one discipline.</p>
+  </div>
+
+
+  <h2><span class="num">§ 02 — System architecture</span>Where each piece sits</h2>
+
+  <p>Here's the layout of the composed system. The bus is the only shared dependency. Each agent has its own runtime (its own process, its own subscriptions, its own credentials). The verifier is private to each worker — different agents can use different verifier configurations.</p>
+</main>
+
+<div class="container-wide">
+  <div class="diagram">
+    <svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" style="max-width: 940px;">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#16140F"/>
+        </marker>
+        <marker id="aro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#B8482E"/>
+        </marker>
+      </defs>
+
+      <!-- BUS in center -->
+      <rect x="280" y="240" width="440" height="56" rx="6" fill="#16140F"/>
+      <text x="500" y="268" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#FAFAF7" letter-spacing="0.12em">MESSAGE BUS (SQLite · later Postgres / Redis)</text>
+      <text x="500" y="286" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#8A8578">publish · subscribe · send_direct · TTL · hop_count · loop prevention</text>
+
+      <!-- ALPHA on left -->
+      <rect x="40" y="160" width="180" height="80" rx="6" fill="none" stroke="#16140F" stroke-width="2"/>
+      <text x="130" y="190" text-anchor="middle" font-family="Fraunces, serif" font-size="18" fill="#16140F" font-weight="500">Alpha</text>
+      <text x="130" y="208" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">requester · researcher</text>
+      <text x="130" y="222" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">subscribes: inbox.alpha</text>
+
+      <!-- Line Alpha to bus -->
+      <line x1="220" y1="220" x2="280" y2="260" stroke="#16140F" stroke-width="1.5" marker-end="url(#ar)"/>
+      <line x1="280" y1="276" x2="220" y2="280" stroke="#16140F" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <!-- BETA on right with verifier inside -->
+      <rect x="700" y="100" width="260" height="220" rx="6" fill="none" stroke="#16140F" stroke-width="2"/>
+      <text x="830" y="128" text-anchor="middle" font-family="Fraunces, serif" font-size="18" fill="#16140F" font-weight="500">Beta</text>
+      <text x="830" y="146" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">worker · responder</text>
+      <text x="830" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">subscribes: inbox.beta</text>
+
+      <!-- Internal Beta architecture -->
+      <rect x="720" y="180" width="220" height="48" rx="4" fill="#F4E4DA" stroke="#B8482E" stroke-width="1.5"/>
+      <text x="830" y="200" text-anchor="middle" font-family="Fraunces, serif" font-size="13" fill="#16140F" font-weight="500">verifier orchestrator</text>
+      <text x="830" y="218" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">RunSkillVerified</text>
+
+      <rect x="720" y="240" width="105" height="40" rx="3" fill="none" stroke="#16140F" stroke-width="1" stroke-dasharray="2 2"/>
+      <text x="772" y="258" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">builder</text>
+      <text x="772" y="270" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">.py / skill</text>
+
+      <rect x="835" y="240" width="105" height="40" rx="3" fill="none" stroke="#16140F" stroke-width="1" stroke-dasharray="2 2"/>
+      <text x="887" y="258" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">verifier</text>
+      <text x="887" y="270" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">mock | llm</text>
+
+      <text x="830" y="306" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578" font-style="italic">work → verify → reply</text>
+
+      <!-- Line Beta to bus -->
+      <line x1="700" y1="220" x2="640" y2="260" stroke="#16140F" stroke-width="1.5" marker-end="url(#ar)"/>
+      <line x1="640" y1="276" x2="700" y2="280" stroke="#16140F" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <!-- Subscriptions / topic labels -->
+      <text x="500" y="226" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578" font-style="italic">request envelopes flow →</text>
+      <text x="500" y="318" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578" font-style="italic">← response envelopes (with verification record)</text>
+
+      <!-- Optional: shared doc blackboard -->
+      <rect x="280" y="380" width="440" height="50" rx="4" fill="#F2EFE8" stroke="#E8E3D6" stroke-dasharray="3 3"/>
+      <text x="500" y="402" text-anchor="middle" font-family="Fraunces, serif" font-size="13" fill="#16140F" font-style="italic">shared blackboard (project document)</text>
+      <text x="500" y="418" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">durable state · single-writer-per-key · optional</text>
+      <line x1="500" y1="296" x2="500" y2="380" stroke="#8A8578" stroke-width="1" stroke-dasharray="3 3"/>
+
+      <!-- Slack edge at top -->
+      <rect x="780" y="20" width="160" height="40" rx="4" fill="none" stroke="#8A8578" stroke-dasharray="3 3"/>
+      <text x="860" y="38" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">SLACK / HUMANS</text>
+      <text x="860" y="52" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">escalation only</text>
+      <line x1="860" y1="60" x2="860" y2="100" stroke="#8A8578" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- More agents (suggested) -->
+      <rect x="40" y="280" width="180" height="80" rx="6" fill="none" stroke="#16140F" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="130" y="310" text-anchor="middle" font-family="Fraunces, serif" font-size="16" fill="#8A8578" font-weight="500" font-style="italic">Gamma (future)</text>
+      <text x="130" y="326" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">another worker</text>
+      <text x="130" y="340" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">same pattern</text>
+
+      <line x1="220" y1="310" x2="280" y2="280" stroke="#8A8578" stroke-width="1" stroke-dasharray="3 3"/>
+
+      <!-- Legend -->
+      <g transform="translate(40, 470)">
+        <text x="0" y="0" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="#16140F">LEGEND</text>
+        <rect x="0" y="14" width="14" height="3" fill="#16140F"/>
+        <text x="20" y="20" font-family="JetBrains Mono, monospace" font-size="10" fill="#4A463E">message envelope</text>
+        <rect x="160" y="14" width="14" height="3" fill="#B8482E"/>
+        <text x="180" y="20" font-family="JetBrains Mono, monospace" font-size="10" fill="#4A463E">verifier loop (internal to worker)</text>
+        <line x1="380" y1="16" x2="394" y2="16" stroke="#8A8578" stroke-width="1" stroke-dasharray="3 3"/>
+        <text x="400" y="20" font-family="JetBrains Mono, monospace" font-size="10" fill="#4A463E">optional / shared state</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Two agents on a shared bus. Beta has the verifier privately inside its process — Alpha doesn't see it directly, but it sees the verification record that travels with every reply. The blackboard and Slack edge are optional additions for state and human escalation.</div>
+  </div>
+</div>
+
+<main class="container">
+
+  <p>The important property of this layout: <strong>nothing is coupled</strong>. The bus knows nothing about verification. The verifier knows nothing about the bus. Beta is the only piece that knows about both, and it knows because it does both — it receives messages and it produces verified work. New worker agents follow the same pattern: subscribe to your inbox, run incoming requests through the verifier, reply with the verification record attached.</p>
+
+
+  <h2><span class="num">§ 03 — Message flow</span>One full request, end to end</h2>
+
+  <p>Below is what actually happens when Alpha asks Beta to do something. Each lifeline is a process or component; each horizontal arrow is a message or function call. Time flows top to bottom.</p>
+</main>
+
+<div class="container-wide">
+  <div class="diagram">
+    <svg viewBox="0 0 1000 720" xmlns="http://www.w3.org/2000/svg" style="max-width: 940px;">
+      <defs>
+        <marker id="sq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#16140F"/>
+        </marker>
+        <marker id="sqo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#B8482E"/>
+        </marker>
+      </defs>
+
+      <!-- Lifelines -->
+      <g font-family="Fraunces, serif" font-size="15" font-weight="500" fill="#16140F" text-anchor="middle">
+        <text x="100" y="35">Alpha</text>
+        <text x="290" y="35">Bus</text>
+        <text x="500" y="35">Beta</text>
+        <text x="720" y="35">Verifier</text>
+        <text x="900" y="35">Builder</text>
+      </g>
+      <g font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578" text-anchor="middle">
+        <text x="100" y="50">requester</text>
+        <text x="290" y="50">SQLite</text>
+        <text x="500" y="50">worker</text>
+        <text x="720" y="50">orchestrator</text>
+        <text x="900" y="50">target script</text>
+      </g>
+
+      <!-- Vertical lifelines -->
+      <g stroke="#E8E3D6" stroke-width="1" stroke-dasharray="2 4">
+        <line x1="100" y1="60" x2="100" y2="690"/>
+        <line x1="290" y1="60" x2="290" y2="690"/>
+        <line x1="500" y1="60" x2="500" y2="690"/>
+        <line x1="720" y1="60" x2="720" y2="690"/>
+        <line x1="900" y1="60" x2="900" y2="690"/>
+      </g>
+
+      <!-- Step 1: Alpha sends request to Bus -->
+      <line x1="100" y1="90" x2="285" y2="90" stroke="#16140F" stroke-width="1.5" marker-end="url(#sq)"/>
+      <text x="190" y="84" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">send_direct(to=beta, request)</text>
+      <circle cx="100" cy="90" r="3" fill="#16140F"/>
+
+      <!-- Step 2: Bus delivers to Beta -->
+      <line x1="290" y1="120" x2="495" y2="120" stroke="#16140F" stroke-width="1.5" marker-end="url(#sq)"/>
+      <text x="395" y="114" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">receive() claims message</text>
+
+      <!-- Beta self-activation -->
+      <rect x="494" y="130" width="12" height="380" fill="#FAFAF7" stroke="#16140F" stroke-width="1"/>
+
+      <!-- Step 3: Beta calls Verifier -->
+      <line x1="506" y1="160" x2="715" y2="160" stroke="#B8482E" stroke-width="1.5" marker-end="url(#sqo)"/>
+      <text x="610" y="154" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#B8482E">RunSkillVerified(intent, builder, max=2)</text>
+
+      <!-- Verifier activation -->
+      <rect x="714" y="170" width="12" height="290" fill="#FAFAF7" stroke="#B8482E" stroke-width="1"/>
+
+      <!-- Step 4: Verifier → Builder attempt 1 -->
+      <line x1="726" y1="195" x2="895" y2="195" stroke="#16140F" stroke-width="1.5" marker-end="url(#sq)"/>
+      <text x="810" y="189" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">run(builder)  · attempt 1</text>
+
+      <!-- Builder activation -->
+      <rect x="894" y="205" width="12" height="22" fill="#FAFAF7" stroke="#16140F" stroke-width="1"/>
+
+      <!-- Builder → Verifier output -->
+      <line x1="895" y1="232" x2="731" y2="232" stroke="#16140F" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#sq)"/>
+      <text x="810" y="226" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">incomplete output</text>
+
+      <!-- Verifier verdict 1 (self-action) -->
+      <path d="M 740 252 Q 760 264 740 276" fill="none" stroke="#B8482E" stroke-width="1.5" marker-end="url(#sqo)"/>
+      <text x="800" y="270" font-family="JetBrains Mono, monospace" font-size="10" fill="#B8482E">decompose → verdict: FAILED</text>
+      <text x="800" y="284" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">1 fail, 1 unverifiable, 3 pass</text>
+
+      <!-- Verifier builds remediation prompt -->
+      <path d="M 740 305 Q 760 317 740 329" fill="none" stroke="#B8482E" stroke-width="1.5" marker-end="url(#sqo)"/>
+      <text x="800" y="320" font-family="JetBrains Mono, monospace" font-size="10" fill="#B8482E">build remediation prompt</text>
+
+      <!-- Verifier → Builder attempt 2 -->
+      <line x1="726" y1="358" x2="895" y2="358" stroke="#16140F" stroke-width="1.5" marker-end="url(#sq)"/>
+      <text x="810" y="352" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">run(builder)  · attempt 2 + REMEDIATION_PROMPT</text>
+
+      <rect x="894" y="368" width="12" height="22" fill="#FAFAF7" stroke="#16140F" stroke-width="1"/>
+
+      <line x1="895" y1="395" x2="731" y2="395" stroke="#16140F" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#sq)"/>
+      <text x="810" y="389" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">complete output</text>
+
+      <!-- Verifier verdict 2 -->
+      <path d="M 740 415 Q 760 427 740 439" fill="none" stroke="#B8482E" stroke-width="1.5" marker-end="url(#sqo)"/>
+      <text x="800" y="430" font-family="JetBrains Mono, monospace" font-size="10" fill="#B8482E">decompose → verdict: VERIFIED</text>
+
+      <!-- Verifier → Beta: result + record -->
+      <line x1="715" y1="465" x2="510" y2="465" stroke="#B8482E" stroke-width="1.5" marker-end="url(#sqo)"/>
+      <text x="610" y="459" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#B8482E">{ result, attempts:2, verification }</text>
+
+      <!-- Beta → Bus: response -->
+      <line x1="494" y1="510" x2="295" y2="510" stroke="#16140F" stroke-width="1.5" marker-end="url(#sq)"/>
+      <text x="395" y="504" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">send_direct(to=alpha, response + verification)</text>
+
+      <!-- Bus → Alpha: deliver -->
+      <line x1="285" y1="555" x2="105" y2="555" stroke="#16140F" stroke-width="1.5" marker-end="url(#sq)"/>
+      <text x="195" y="549" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">receive() returns response</text>
+
+      <!-- Alpha trust check -->
+      <rect x="60" y="580" width="220" height="60" rx="4" fill="#F4E4DA" stroke="#B8482E"/>
+      <text x="170" y="600" text-anchor="middle" font-family="Fraunces, serif" font-size="13" fill="#16140F" font-weight="500">Alpha: trust check</text>
+      <text x="170" y="618" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">if verification.status == "verified":</text>
+      <text x="170" y="630" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">  accept result. else: refuse / escalate</text>
+
+      <!-- Final accept -->
+      <circle cx="100" cy="670" r="4" fill="#2D5A1F"/>
+      <text x="115" y="674" font-family="JetBrains Mono, monospace" font-size="10" fill="#2D5A1F">accepted</text>
+
+      <!-- Side annotation: gap report -->
+      <rect x="600" y="555" width="380" height="100" rx="4" fill="#F2EFE8" stroke="#E8E3D6"/>
+      <text x="790" y="580" text-anchor="middle" font-family="Fraunces, serif" font-size="13" fill="#16140F" font-weight="500">↑ Verification record includes:</text>
+      <text x="615" y="600" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">• status: verified | failed | partial</text>
+      <text x="615" y="615" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">• 5 claims (id, verdict, confidence, reasoning)</text>
+      <text x="615" y="630" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">• cost_usd, duration_ms, verifier_model</text>
+      <text x="615" y="645" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">• gap_report → drafts skill doc improvements</text>
+    </svg>
+    <div class="diagram-caption">Time flows top to bottom. The verifier loop happens entirely inside Beta's process — the bus never sees the remediation. Alpha receives one response message that already encodes the work, the attempts taken, and what the verifier found.</div>
+  </div>
+</div>
+
+<main class="container">
+
+
+  <h2><span class="num">§ 04 — Walkthrough</span>What happens step by step</h2>
+
+  <p>Following the flow chart above. Each step is one box's worth of work; together they're a complete agent-to-agent interaction with built-in trust.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="who">Alpha → Bus</div>
+        <h4>Alpha sends a directly-addressed request</h4>
+        <p>Alpha calls <code>bus.send_direct(to=beta, payload={task, intent, skill_doc, max_attempts})</code>. A new <code>conversation_id</code> is minted; the envelope carries <code>hop_count=0</code>, a fresh UUID, and a 5-minute TTL. The bus inserts a row and the message becomes visible in Beta's inbox.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="who">Beta ← Bus</div>
+        <h4>Beta picks up the request from its inbox</h4>
+        <p>Beta polls <code>bus.receive(agent_id=beta, subscriptions=["inbox.beta"])</code>. The bus atomically claims any unclaimed messages addressed to Beta — atomic so that if multiple Beta replicas were running, only one would get the work. TTL-expired messages are swept on the same read.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="who">Beta → Verifier orchestrator</div>
+        <h4>Beta hands the work to the verifier wrapper</h4>
+        <p>Instead of running its builder script directly, Beta invokes <code>RunSkillVerified</code> with the builder path, the intent from Alpha's request, and a verifier configuration. The orchestrator owns the rest of the loop. Beta has now delegated <em>both</em> the work and the self-check in one call.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="who">Verifier → Builder (attempt 1)</div>
+        <h4>The orchestrator runs the builder for the first time</h4>
+        <p>The builder is a subprocess. No remediation prompt yet. In the demo, the toy builder returns an output deliberately missing two fields (no <code>amount</code>, no <code>timestamp</code>) so we exercise the failure path.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="who">Verifier (internal)</div>
+        <h4>Decomposition into atomic claims, verdicts assigned</h4>
+        <p>The verifier produces 5 claims: existential ("output is non-empty"), structural ("output is JSON"), semantic ("addresses the user's intent"), factual ("output is timestamped from today"), negative ("no credentials leaked"). On the missing-fields output, the semantic claim <strong>fails</strong> and the factual claim is <strong>unverifiable</strong>. Three pass.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="who">Verifier → Builder (attempt 2)</div>
+        <h4>Remediation prompt built; builder re-invoked</h4>
+        <p>The orchestrator builds a structured remediation prompt naming each failed claim with reasoning and what the verifier needs. It re-runs the builder with <code>REMEDIATION_PROMPT</code> in the environment. The builder reads it and produces a complete output. The verifier re-decomposes and gets all-pass.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="who">Verifier → Beta</div>
+        <h4>Verification record produced and returned</h4>
+        <p>The orchestrator returns a single JSON record to Beta: <code>{ result, attempts:2, verification: { status:"verified", claims:[...], gap_report:{...} } }</code>. The session-wide gap report still surfaces the originally-unverifiable claim, so even on success, the doc-improvement signal is preserved.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="who">Beta → Bus → Alpha</div>
+        <h4>Response sent back over the bus</h4>
+        <p>Beta packages the verifier's record as the response payload and calls <code>bus.send_direct(to=alpha, payload=..., conversation_id=same, reply_to=msg_id, msg_type="response")</code>. The conversation thread is preserved by id.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="who">Alpha (trust check)</div>
+        <h4>Alpha decides whether to accept</h4>
+        <p>Alpha reads <code>verification.status</code>. On <strong>verified</strong>, accept. On <strong>partial</strong>, accept but note the gap report. On <strong>failed</strong>, refuse — escalate to a human channel, retry with a different worker, or fall back to a known-good path. The decision is the agent's, not the verifier's.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">The trust handoff is the entire point. Alpha doesn't have to take Beta's word for it. Alpha can see the claims, the evidence, the confidence, the cost, the model that did the verifying. That's what makes the agents <em>work together</em> rather than just exchange data.</div>
+
+
+  <h2><span class="num">§ 05 — Pros of this setup</span>Why these two primitives belong together</h2>
+
+  <p>Plenty of multi-agent frameworks exist. This one is small, but it has properties that matter more than feature count.</p>
+
+  <div class="pros">
+    <div class="pro">
+      <div class="tag">PRO 01</div>
+      <h4>Composition without coupling</h4>
+      <p>The bus knows nothing about verification. The verifier knows nothing about the bus. They compose because Beta's response payload happens to carry a verification record — that's all. Either piece works without the other.</p>
+    </div>
+    <div class="pro">
+      <div class="tag">PRO 02</div>
+      <h4>Trust travels with the message</h4>
+      <p>Receivers don't have to assume the sender did their homework. Every reply carries the verifier's record — status, claims, evidence, confidence, cost. The receiver can apply its own acceptance policy.</p>
+    </div>
+    <div class="pro">
+      <div class="tag">PRO 03</div>
+      <h4>Self-correction inside workers</h4>
+      <p>Workers fix their own output before publishing. A single remediation attempt is often all it takes. The user does not have to discover the failure later — it never leaves the worker.</p>
+    </div>
+    <div class="pro">
+      <div class="tag">PRO 04</div>
+      <h4>Independent failure modes</h4>
+      <p>The verifier runs on a different model family than the builder. The bus is a separate process from any agent. The blackboard is separate from messages. Same-cause failures across layers are unlikely; one broken piece doesn't take everything down.</p>
+    </div>
+    <div class="pro">
+      <div class="tag">PRO 05</div>
+      <h4>Documentation flywheel</h4>
+      <p>Every unverifiable claim becomes a candidate doc improvement, surfaced via the existing draft-card flow. Skills get better not because someone rewrote them, but because verification kept surfacing what they failed to say.</p>
+    </div>
+    <div class="pro">
+      <div class="tag">PRO 06</div>
+      <h4>Bounded blast radius</h4>
+      <p>TTL on every envelope. <code>hop_count</code> hard cap. <code>max_attempts</code> on every verification. Per-attempt budget cap on verifier cost. Heartbeat-based agent staleness. Loops cannot persist; runaway costs cannot accumulate.</p>
+    </div>
+    <div class="pro">
+      <div class="tag">PRO 07</div>
+      <h4>Fully observable</h4>
+      <p>Every message is a row in SQLite. Every claim is recorded with its evidence. Every conversation can be replayed. You don't need a separate logging system to debug what happened — the bus is the log.</p>
+    </div>
+    <div class="pro">
+      <div class="tag">PRO 08</div>
+      <h4>Production swap-in is a single change per layer</h4>
+      <p>SQLite → Postgres LISTEN/NOTIFY or Redis pub-sub for the bus. Mock → LLM verifier (same <code>verify()</code> signature). Subprocess builder → real Hyperagent skill via <code>RunWithCredentials</code>. Each swap is local; nothing else has to change.</p>
+    </div>
+  </div>
+
+
+  <h2><span class="num">§ 06 — What this isn't</span>Honest limitations</h2>
+
+  <p>The system above is small and complete, but it isn't everything. Here's what it deliberately doesn't do, so you know what to add later vs. what's a non-goal.</p>
+
+  <div class="limit">
+    <h4>Real-time low-latency coordination</h4>
+    <p>SQLite + polling is fine for the conversational pace of agents discussing work (seconds to minutes). For sub-100ms coordination, swap to NATS or Redis Streams. The agent code does not change.</p>
+  </div>
+
+  <div class="limit">
+    <h4>Agentic verifier with its own tools</h4>
+    <p>The current LLM verifier is single-call — it inspects the builder's output text and reasons. Behavioral claims that require running code are marked <code>unverifiable</code>. An agentic verifier that could make tool calls is a v2 upgrade with the same external signature.</p>
+  </div>
+
+  <div class="limit">
+    <h4>Chain-of-skill verification</h4>
+    <p>The verifier wraps a single builder. If a high-level task chains three skills, the current pattern verifies each call independently. Cross-skill claims (e.g. "the data fetched in step 1 is what step 2 acted on") are deferred.</p>
+  </div>
+
+  <div class="limit">
+    <h4>Human-in-the-loop attestation</h4>
+    <p>Every claim is decided automatically. For high-stakes operations (large money movement, deletions, public posts), a <code>human_attestation</code> claim type is a natural extension — fires when present, routes to a human channel for approval before the worker can publish.</p>
+  </div>
+
+  <div class="limit">
+    <h4>Cross-tenant isolation</h4>
+    <p>The current bus assumes all agents trust the same SQLite file. Multi-tenant deployments need separate buses per tenant or per-row ACLs. Not difficult, just not done.</p>
+  </div>
+
+
+  <h2><span class="num">§ 07 — What's next</span>Three concrete moves</h2>
+
+  <p>Three things would make this real, in order:</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Save both as skills, swap the verifier to LLM mode</h4>
+        <p>Save the existing <code>verifier</code> draft, then update it to add the LLM backend and declare the credential. Create a sibling <code>agent-bus</code> skill from the working code in <code>/agent/workspace/demos/comms-with-verifier/</code>. With both saved, any future agent can <code>FetchSkillScripts</code> and use them.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Build the observability surface</h4>
+        <p>A static HTML reader for the SQLite bus: live agents with heartbeat status, conversations grouped by id, per-message verification status color-coded, gap reports highlighted at the bottom. Reading the database is half a screen of code; the dashboard makes the next three problems debuggable.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Add a third agent and watch what happens</h4>
+        <p>Two agents is a conversation. Three is a system. Add a third — call it Gamma, a writer that takes Alpha's research and Beta's data and produces a final artifact — and observe what breaks. That's where the topic ontology, the blackboard discipline, and the gap-report flywheel get pressure-tested. Nothing in the substrate has to change; the cracks that appear are the design questions worth answering next.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">Two primitives, eight pros, four honest limits, three moves. That's the entire system. The interesting work from here is application logic — what topics matter, what claims matter, who escalates to whom — not infrastructure.</div>
+
+</main>
+
+<footer>
+  <div class="line">Reference architecture · No. 03 · <em>The composed system</em></div>
+  <div class="line">Companion to Ref. 01 (Agents talking to agents) and Ref. 02 (The verifier primitive).</div>
+</footer>
+
+</body>
+</html>

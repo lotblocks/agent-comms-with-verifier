@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bus Observability Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+
+:root {
+  --bg: #FAFAF7; --bg-card: #FFFFFF; --bg-subtle: #F2EFE8;
+  --ink: #16140F; --ink-soft: #4A463E; --ink-mute: #8A8578;
+  --rule: #E8E3D6; --accent: #B8482E; --accent-soft: #F4E4DA;
+  --green: #2D5A1F; --green-bg: #E8F0E5;
+  --amber: #8B6914; --amber-bg: #F4ECDA;
+  --red: #8B2914; --red-bg: #F4DAD4;
+  --blue: #2B4E7A; --blue-bg: #E0E8F0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: 'Inter', system-ui, sans-serif; font-size: 15px;
+  line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 1080px; margin: 0 auto; padding: 56px 32px; }
+
+/* Header */
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+  margin-bottom: 20px;
+}
+h1 {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 400;
+  font-size: 52px; line-height: 1.05; letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+h1 em { font-style: italic; color: var(--accent); font-weight: 300; }
+.subtitle {
+  font-family: 'Fraunces', serif; font-size: 18px; color: var(--ink-soft);
+  font-style: italic; margin-bottom: 32px;
+}
+.meta-row {
+  display: flex; gap: 32px; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-mute); letter-spacing: 0.04em; padding: 16px 0;
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+}
+.meta-row strong { color: var(--ink-soft); font-weight: 500; }
+
+/* Section heads */
+section { margin-top: 56px; }
+h2 {
+  font-family: 'Fraunces', serif; font-weight: 500; font-size: 28px;
+  letter-spacing: -0.015em; margin-bottom: 8px;
+}
+h2 .num {
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--accent); letter-spacing: 0.1em; margin-bottom: 8px;
+}
+h2 .count {
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  color: var(--ink-mute); margin-left: 8px;
+}
+.sect-desc {
+  font-size: 14px; color: var(--ink-mute); margin-bottom: 24px;
+  font-style: italic;
+}
+
+/* Stats strip */
+.stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  margin: 24px 0;
+}
+.stat {
+  background: var(--bg-card); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 18px 20px;
+}
+.stat .label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-mute);
+  margin-bottom: 8px;
+}
+.stat .value {
+  font-family: 'Fraunces', serif; font-size: 32px; color: var(--ink);
+  font-weight: 500; line-height: 1;
+}
+.stat .sub {
+  font-size: 11px; color: var(--ink-mute); margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Agents */
+.agents { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.agent {
+  background: var(--bg-card); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 20px;
+  display: grid; grid-template-columns: 1fr auto; gap: 12px;
+  align-items: start;
+}
+.agent .id-line {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-mute); margin-bottom: 4px; letter-spacing: 0.04em;
+}
+.agent h3 {
+  font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500;
+  color: var(--ink); margin: 0 0 4px;
+}
+.agent .role {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.agent .subs {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-soft);
+}
+.status-pill {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 4px 10px; border-radius: 11px; white-space: nowrap;
+}
+.status-pill.alive { background: var(--green-bg); color: var(--green); }
+.status-pill.stale { background: var(--amber-bg); color: var(--amber); }
+.heartbeat-age {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--ink-mute); margin-top: 6px;
+}
+
+/* Chains (one chain = root + nested children) */
+.chain {
+  background: var(--bg-card); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 24px 28px; margin-bottom: 24px;
+}
+.chain .chain-head {
+  display: flex; justify-content: space-between; align-items: start;
+  padding-bottom: 16px; border-bottom: 1px solid var(--rule);
+  margin-bottom: 16px; gap: 24px;
+}
+.chain .chain-id {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--ink-soft); letter-spacing: 0.04em;
+}
+.chain .chain-title {
+  font-family: 'Fraunces', serif; font-size: 18px;
+  color: var(--ink); font-weight: 500; margin-top: 4px;
+}
+.chain-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  margin-bottom: 20px;
+}
+.chain-stat {
+  background: var(--bg-subtle); padding: 12px 14px; border-radius: 3px;
+}
+.chain-stat .l {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-mute); margin-bottom: 4px;
+}
+.chain-stat .v {
+  font-family: 'Fraunces', serif; font-size: 20px; color: var(--ink);
+  font-weight: 500;
+}
+.chain-status-pill {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 6px 14px; border-radius: 14px;
+}
+.chain-status-pill.verified { background: var(--green-bg); color: var(--green); }
+.chain-status-pill.partial { background: var(--amber-bg); color: var(--amber); }
+.chain-status-pill.failed { background: var(--red-bg); color: var(--red); }
+
+.conversation {
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px dashed var(--rule);
+}
+.conversation:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.conversation.nested {
+  margin-left: 24px; padding-left: 16px;
+  border-left: 2px solid var(--accent-soft);
+}
+.conversation .head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 10px; margin-bottom: 12px;
+}
+.conversation .cid {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-soft); letter-spacing: 0.04em;
+}
+.conversation .cid .nested-tag {
+  background: var(--accent-soft); color: var(--accent);
+  padding: 2px 8px; border-radius: 2px; margin-left: 8px;
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.conversation .meta {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--ink-mute);
+}
+
+.message {
+  display: grid; grid-template-columns: 110px 1fr;
+  gap: 16px; padding: 16px 0; border-bottom: 1px dashed var(--rule);
+}
+.message:last-child { border-bottom: none; }
+.message .meta {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--ink-mute); line-height: 1.5;
+}
+.message .meta strong { color: var(--ink-soft); }
+.message .body {
+  font-size: 14px;
+}
+.message .route {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--ink); margin-bottom: 6px;
+}
+.message .arrow { color: var(--accent); margin: 0 6px; }
+.message .type-pill {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 2px 8px; border-radius: 2px;
+  background: var(--bg-subtle); color: var(--ink-soft);
+  margin-left: 8px;
+}
+.message .type-pill.request { background: var(--blue-bg); color: var(--blue); }
+.message .type-pill.response { background: var(--green-bg); color: var(--green); }
+.message .type-pill.event { background: var(--amber-bg); color: var(--amber); }
+
+.payload-preview {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-soft); margin-top: 4px;
+  background: var(--bg-subtle); padding: 8px 12px; border-radius: 3px;
+  white-space: pre-wrap; word-break: break-word;
+}
+
+.verification-banner {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 6px 12px; border-radius: 3px; margin-top: 8px;
+  letter-spacing: 0.04em;
+}
+.verification-banner.verified { background: var(--green-bg); color: var(--green); }
+.verification-banner.partial { background: var(--amber-bg); color: var(--amber); }
+.verification-banner.failed { background: var(--red-bg); color: var(--red); }
+.verification-banner strong { font-weight: 600; }
+.verification-banner .sep { color: var(--ink-mute); margin: 0 4px; }
+
+.claims-mini {
+  display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+}
+.claim-chip {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  padding: 3px 8px; border-radius: 10px; letter-spacing: 0.03em;
+}
+.claim-chip.pass { background: var(--green-bg); color: var(--green); }
+.claim-chip.fail { background: var(--red-bg); color: var(--red); }
+.claim-chip.unverifiable { background: var(--amber-bg); color: var(--amber); }
+
+/* Gap reports */
+.gap-report {
+  background: var(--bg-card); border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  padding: 20px 24px; margin-bottom: 16px;
+}
+.gap-report .src {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--ink-mute); margin-bottom: 6px; letter-spacing: 0.05em;
+}
+.gap-report h3 {
+  font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500;
+  margin-bottom: 8px;
+}
+.gap-report .summary {
+  font-size: 14px; color: var(--ink-soft); margin-bottom: 16px;
+  font-style: italic;
+}
+.improvement {
+  border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 12px;
+}
+.improvement .claim-statement {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-soft); margin-bottom: 6px;
+}
+.improvement .proposed {
+  font-size: 13px; line-height: 1.55; color: var(--ink);
+  padding: 10px 14px; background: var(--accent-soft); border-radius: 3px;
+}
+.improvement .proposed strong {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
+  display: block; margin-bottom: 4px;
+}
+.improvement .conf {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--ink-mute); margin-top: 6px;
+}
+
+/* Empty */
+.empty {
+  background: var(--bg-card); border: 1px dashed var(--rule);
+  border-radius: 4px; padding: 32px; text-align: center;
+  color: var(--ink-mute); font-style: italic; font-size: 14px;
+}
+
+footer {
+  margin-top: 96px; padding: 32px 0; border-top: 1px solid var(--rule);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-mute); text-align: center; letter-spacing: 0.04em;
+}
+
+@media (max-width: 720px) {
+  .agents, .stats { grid-template-columns: 1fr; }
+  h1 { font-size: 36px; }
+  .message { grid-template-columns: 1fr; }
+}
+
+</style>
+</head>
+<body>
+<div class="container">
+<div class="eyebrow">Bus snapshot · Reference No. 03 series</div>
+<h1>The conversation, <em>visible.</em></h1>
+<div class="subtitle">A static read of the multi-agent bus — every agent, every message, every verdict.</div>
+<div class="meta-row">
+<span><strong>SNAPSHOT</strong> &nbsp;2026-05-18 · 21:27:01 UTC</span>
+<span><strong>DATABASE</strong> &nbsp;_concurrent_bus.sqlite</span>
+<span><strong>AGENTS</strong> &nbsp;9 (9 alive)</span>
+<span><strong>CONVERSATIONS</strong> &nbsp;10</span>
+<span><strong>MESSAGES</strong> &nbsp;20</span>
+</div>
+<div class="stats">
+<div class="stat"><div class="label">Verified replies</div><div class="value">10</div><div class="sub">all claims pass</div></div>
+<div class="stat"><div class="label">Partial replies</div><div class="value">0</div><div class="sub">no fails, ≥1 unverifiable</div></div>
+<div class="stat"><div class="label">Failed replies</div><div class="value">0</div><div class="sub">at least 1 claim failed</div></div>
+<div class="stat"><div class="label">Gap reports</div><div class="value">10</div><div class="sub">doc improvement candidates</div></div>
+</div>
+<section>
+<h2><span class="num">§ 01 — Registry</span>Live agents<span class="count">· 9</span></h2>
+<div class="sect-desc">Heartbeat-based liveness. Agents that miss more than 90 seconds become stale.</div>
+<div class="agents">
+<div class="agent">
+<div>
+<div class="id-line">agent_alpha_1</div>
+<h3>Alpha</h3>
+<div class="role">researcher</div>
+<div class="subs">subs: inbox.agent_alpha_1</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 33.5s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_alpha_2</div>
+<h3>Alpha</h3>
+<div class="role">researcher</div>
+<div class="subs">subs: inbox.agent_alpha_2</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 33.5s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_alpha_3</div>
+<h3>Alpha</h3>
+<div class="role">researcher</div>
+<div class="subs">subs: inbox.agent_alpha_3</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 33.5s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_alpha_4</div>
+<h3>Alpha</h3>
+<div class="role">researcher</div>
+<div class="subs">subs: inbox.agent_alpha_4</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 33.5s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_alpha_5</div>
+<h3>Alpha</h3>
+<div class="role">researcher</div>
+<div class="subs">subs: inbox.agent_alpha_5</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 33.5s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_beta_1</div>
+<h3>Beta</h3>
+<div class="role">worker</div>
+<div class="subs">subs: inbox.agent_beta_1, role.worker</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 13.7s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_beta_2</div>
+<h3>Beta</h3>
+<div class="role">worker</div>
+<div class="subs">subs: inbox.agent_beta_2, role.worker</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 13.8s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_gamma_1</div>
+<h3>Gamma</h3>
+<div class="role">writer</div>
+<div class="subs">subs: inbox.agent_gamma_1, role.writer</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 13.7s ago</div></div>
+</div>
+<div class="agent">
+<div>
+<div class="id-line">agent_gamma_2</div>
+<h3>Gamma</h3>
+<div class="role">writer</div>
+<div class="subs">subs: inbox.agent_gamma_2, role.writer</div>
+</div>
+<div><div class="status-pill alive">ALIVE</div><div class="heartbeat-age">last beat: 13.6s ago</div></div>
+</div>
+</div>
+</section>
+<section>
+<h2><span class="num">§ 02 — Chains</span>End-to-end conversations<span class="count">· 10</span></h2>
+<div class="sect-desc">Each chain is a root conversation plus any nested sub-conversations a worker started to fulfill it. Stats are end-to-end (weakest-link trust, total cost, total duration).</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_af065ae03cca</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">4</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.29s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_af065ae03cca</div>
+<div class="meta">2 msgs · 0.29s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.159Z</strong></div><div>hop=0 ttl=300s</div><div>msg_ebf91e7b400b</div></div>
+<div class="body">
+<div class="route"><span>agent_alpha_1</span><span class="arrow">→</span><span>#role.writer</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;intent&quot;: &quot;write report variant #1 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-write-report&quot;, &quot;skill_doc&quot;: &quot;Returns JSON with fields: status, report, amount, timestamp.&quot;, &quot;max_attempts&quot;: 2, &quot;upstream_role...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.451Z</strong></div><div>hop=1 ttl=300s</div><div>msg_3a25bf160059</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_1</span><span class="arrow">→</span><span>agent_alpha_1</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 2, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 2, &quot;total_attempts&quot;: 4, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;verif...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_20db8ab8a143</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">1</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.17s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_20db8ab8a143</div>
+<div class="meta">2 msgs · 0.17s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.174Z</strong></div><div>hop=1 ttl=300s</div><div>msg_8a6f4de513ce</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_1</span><span class="arrow">→</span><span>#role.worker</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;intent&quot;: &quot;fetch the data needed for: write report variant #1 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-compute-total&quot;, &quot;skill_doc&quot;: &quot;Computes the total of line items and returns JSON with status, repo...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.345Z</strong></div><div>hop=2 ttl=300s</div><div>msg_d004bd191d1b</div></div>
+<div class="body">
+<div class="route"><span>agent_beta_2</span><span class="arrow">→</span><span>agent_gamma_1</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 1, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 1, &quot;total_attempts&quot;: 2, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;veri...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_4cfd5f7ec2cf</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">4</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.39s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_4cfd5f7ec2cf</div>
+<div class="meta">2 msgs · 0.39s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.179Z</strong></div><div>hop=0 ttl=300s</div><div>msg_6249cb29b48d</div></div>
+<div class="body">
+<div class="route"><span>agent_alpha_2</span><span class="arrow">→</span><span>#role.writer</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;intent&quot;: &quot;write report variant #2 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-write-report&quot;, &quot;skill_doc&quot;: &quot;Returns JSON with fields: status, report, amount, timestamp.&quot;, &quot;max_attempts&quot;: 2, &quot;upstream_role...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.565Z</strong></div><div>hop=1 ttl=300s</div><div>msg_ca9092514088</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_2</span><span class="arrow">→</span><span>agent_alpha_2</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 2, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 2, &quot;total_attempts&quot;: 4, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;verif...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_624f0e0cdee2</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">4</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.45s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_624f0e0cdee2</div>
+<div class="meta">2 msgs · 0.45s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.185Z</strong></div><div>hop=0 ttl=300s</div><div>msg_dd460c6ffc70</div></div>
+<div class="body">
+<div class="route"><span>agent_alpha_3</span><span class="arrow">→</span><span>#role.writer</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;intent&quot;: &quot;write report variant #3 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-write-report&quot;, &quot;skill_doc&quot;: &quot;Returns JSON with fields: status, report, amount, timestamp.&quot;, &quot;max_attempts&quot;: 2, &quot;upstream_role...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.631Z</strong></div><div>hop=1 ttl=300s</div><div>msg_15886d351d71</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_1</span><span class="arrow">→</span><span>agent_alpha_3</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 2, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 2, &quot;total_attempts&quot;: 4, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;verif...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_055ca2a54c34</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">4</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.66s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_055ca2a54c34</div>
+<div class="meta">2 msgs · 0.66s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.189Z</strong></div><div>hop=0 ttl=300s</div><div>msg_819756141970</div></div>
+<div class="body">
+<div class="route"><span>agent_alpha_4</span><span class="arrow">→</span><span>#role.writer</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;intent&quot;: &quot;write report variant #4 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-write-report&quot;, &quot;skill_doc&quot;: &quot;Returns JSON with fields: status, report, amount, timestamp.&quot;, &quot;max_attempts&quot;: 2, &quot;upstream_role...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.847Z</strong></div><div>hop=1 ttl=300s</div><div>msg_1b517cd77c23</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_2</span><span class="arrow">→</span><span>agent_alpha_4</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 2, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 2, &quot;total_attempts&quot;: 4, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;verif...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_fc5a52ae86ab</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">4</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.62s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_fc5a52ae86ab</div>
+<div class="meta">2 msgs · 0.62s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.198Z</strong></div><div>hop=0 ttl=300s</div><div>msg_f0b7ccfecb9c</div></div>
+<div class="body">
+<div class="route"><span>agent_alpha_5</span><span class="arrow">→</span><span>#role.writer</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;intent&quot;: &quot;write report variant #5 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-write-report&quot;, &quot;skill_doc&quot;: &quot;Returns JSON with fields: status, report, amount, timestamp.&quot;, &quot;max_attempts&quot;: 2, &quot;upstream_role...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.816Z</strong></div><div>hop=1 ttl=300s</div><div>msg_dc8d7c728636</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_1</span><span class="arrow">→</span><span>agent_alpha_5</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;write_report&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 2, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 2, &quot;total_attempts&quot;: 4, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;verif...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_42dfe883de66</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">1</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.14s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_42dfe883de66</div>
+<div class="meta">2 msgs · 0.14s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.278Z</strong></div><div>hop=1 ttl=300s</div><div>msg_766cd1608f4c</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_2</span><span class="arrow">→</span><span>#role.worker</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;intent&quot;: &quot;fetch the data needed for: write report variant #2 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-compute-total&quot;, &quot;skill_doc&quot;: &quot;Computes the total of line items and returns JSON with status, repo...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.422Z</strong></div><div>hop=2 ttl=300s</div><div>msg_7284ff949bb9</div></div>
+<div class="body">
+<div class="route"><span>agent_beta_2</span><span class="arrow">→</span><span>agent_gamma_2</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 1, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 1, &quot;total_attempts&quot;: 2, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;veri...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_8f48a800688c</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">1</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.10s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_8f48a800688c</div>
+<div class="meta">2 msgs · 0.10s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.456Z</strong></div><div>hop=1 ttl=300s</div><div>msg_5be3708f82bf</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_1</span><span class="arrow">→</span><span>#role.worker</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;intent&quot;: &quot;fetch the data needed for: write report variant #3 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-compute-total&quot;, &quot;skill_doc&quot;: &quot;Computes the total of line items and returns JSON with status, repo...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.554Z</strong></div><div>hop=2 ttl=300s</div><div>msg_5413f419234c</div></div>
+<div class="body">
+<div class="route"><span>agent_beta_1</span><span class="arrow">→</span><span>agent_gamma_1</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 1, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 1, &quot;total_attempts&quot;: 2, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;veri...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_c442a69347e5</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">1</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.13s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_c442a69347e5</div>
+<div class="meta">2 msgs · 0.13s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.570Z</strong></div><div>hop=1 ttl=300s</div><div>msg_8fd44d57f40c</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_2</span><span class="arrow">→</span><span>#role.worker</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;intent&quot;: &quot;fetch the data needed for: write report variant #4 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-compute-total&quot;, &quot;skill_doc&quot;: &quot;Computes the total of line items and returns JSON with status, repo...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.703Z</strong></div><div>hop=2 ttl=300s</div><div>msg_6cef6f63ee3f</div></div>
+<div class="body">
+<div class="route"><span>agent_beta_2</span><span class="arrow">→</span><span>agent_gamma_2</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 1, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 1, &quot;total_attempts&quot;: 2, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;veri...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="chain">
+<div class="chain-head">
+<div>
+<div class="chain-id">root: cnv_9f76b66edd34</div>
+<div class="chain-title">1 conversation(s) · 2 message(s) · depth 0</div>
+</div>
+<div class="chain-status-pill verified">chain: verified</div>
+</div>
+<div class="chain-stats">
+<div class="chain-stat"><div class="l">Hops</div><div class="v">1</div></div>
+<div class="chain-stat"><div class="l">Total attempts</div><div class="v">2</div></div>
+<div class="chain-stat"><div class="l">Total cost</div><div class="v">$0.0000</div></div>
+<div class="chain-stat"><div class="l">Wall duration</div><div class="v">0.10s</div></div>
+</div>
+<div class="conversation">
+<div class="head">
+<div class="cid">cnv_9f76b66edd34</div>
+<div class="meta">2 msgs · 0.10s</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.636Z</strong></div><div>hop=1 ttl=300s</div><div>msg_cb07976d1bfe</div></div>
+<div class="body">
+<div class="route"><span>agent_gamma_1</span><span class="arrow">→</span><span>#role.worker</span><span class="type-pill request">request</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;intent&quot;: &quot;fetch the data needed for: write report variant #5 summarizing the project total&quot;, &quot;skill_name&quot;: &quot;demo-compute-total&quot;, &quot;skill_doc&quot;: &quot;Computes the total of line items and returns JSON with status, repo...</div>
+</div>
+</div>
+<div class="message">
+<div class="meta"><div><strong>21:26:28.738Z</strong></div><div>hop=2 ttl=300s</div><div>msg_5cde95da385a</div></div>
+<div class="body">
+<div class="route"><span>agent_beta_1</span><span class="arrow">→</span><span>agent_gamma_1</span><span class="type-pill response">response</span></div>
+<div class="payload-preview">{&quot;task&quot;: &quot;compute_total&quot;, &quot;attempts&quot;: 2, &quot;chain_summary&quot;: {&quot;chain_status&quot;: &quot;verified&quot;, &quot;hop_count&quot;: 1, &quot;total_cost_usd&quot;: 0.0, &quot;total_duration_ms&quot;: 1, &quot;total_attempts&quot;: 2, &quot;per_hop&quot;: [{&quot;verifier_model&quot;: &quot;mock-verifier-v1&quot;, &quot;status&quot;: &quot;veri...</div>
+<div class="verification-banner verified"><strong>verification:</strong> verified <span class="sep">·</span> 5 claims <span class="sep">·</span> mock-verifier-v1 <span class="sep">·</span> $0.0000</div>
+<div class="claims-mini"><span class="claim-chip pass">5 pass</span></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section>
+<h2><span class="num">§ 03 — Gap reports</span>Doc improvement candidates<span class="count">· 10</span></h2>
+<div class="sect-desc">When the verifier marks a claim unverifiable, it proposes a documentation change that would make the claim verifiable next time. These are the suggestions awaiting a draft-card review.</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_d004bd191d1b · SKILL(S) demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>1 unverifiable claim(s)</h3>
+<div class="summary">1 unverifiable claim(s) across 1 verification hop(s) spanning skill(s): demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_7284ff949bb9 · SKILL(S) demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>1 unverifiable claim(s)</h3>
+<div class="summary">1 unverifiable claim(s) across 1 verification hop(s) spanning skill(s): demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_3a25bf160059 · SKILL(S) demo-write-report, demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>2 unverifiable claim(s)</h3>
+<div class="summary">2 unverifiable claim(s) across 2 verification hop(s) spanning skill(s): demo-write-report, demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-write-report</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-write-report includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_5413f419234c · SKILL(S) demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>1 unverifiable claim(s)</h3>
+<div class="summary">1 unverifiable claim(s) across 1 verification hop(s) spanning skill(s): demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_ca9092514088 · SKILL(S) demo-write-report, demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>2 unverifiable claim(s)</h3>
+<div class="summary">2 unverifiable claim(s) across 2 verification hop(s) spanning skill(s): demo-write-report, demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-write-report</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-write-report includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_15886d351d71 · SKILL(S) demo-write-report, demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>2 unverifiable claim(s)</h3>
+<div class="summary">2 unverifiable claim(s) across 2 verification hop(s) spanning skill(s): demo-write-report, demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-write-report</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-write-report includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_6cef6f63ee3f · SKILL(S) demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>1 unverifiable claim(s)</h3>
+<div class="summary">1 unverifiable claim(s) across 1 verification hop(s) spanning skill(s): demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_5cde95da385a · SKILL(S) demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>1 unverifiable claim(s)</h3>
+<div class="summary">1 unverifiable claim(s) across 1 verification hop(s) spanning skill(s): demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_dc8d7c728636 · SKILL(S) demo-write-report, demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>2 unverifiable claim(s)</h3>
+<div class="summary">2 unverifiable claim(s) across 2 verification hop(s) spanning skill(s): demo-write-report, demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-write-report</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-write-report includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+<div class="gap-report">
+<div class="src">FROM MESSAGE msg_1b517cd77c23 · SKILL(S) demo-write-report, demo-compute-total · MERGED ACROSS CHAIN</div>
+<h3>2 unverifiable claim(s)</h3>
+<div class="summary">2 unverifiable claim(s) across 2 verification hop(s) spanning skill(s): demo-write-report, demo-compute-total.</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-write-report</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-write-report includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+<div class="improvement">
+<div class="claim-statement">claim: the output is timestamped from today · origin: demo-compute-total</div>
+<div class="proposed">
+<strong>PROPOSED (DOCUMENTATION)</strong>
+Specify whether the output of demo-compute-total includes a factual field for: &quot;the output is timestamped from today&quot;. If yes, document the field name and format. If no, document that it is intentionally absent.
+</div>
+<div class="conf">confidence: 70%</div>
+</div>
+</div>
+</section>
+<footer>Bus snapshot · generated by build_dashboard.py · reload by re-running the demo and the generator</footer>
+</div>
+</body>
+</html>

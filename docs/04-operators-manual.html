@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Operator's Manual — agent-comms-with-verifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --bg-card: #FFFFFF;
+    --bg-subtle: #F2EFE8;
+    --ink: #16140F;
+    --ink-soft: #4A463E;
+    --ink-mute: #8A8578;
+    --rule: #E8E3D6;
+    --accent: #B8482E;
+    --accent-soft: #F4E4DA;
+    --teal: #2D6A6A;
+    --green: #2D5A1F;
+    --green-bg: #E8F0E5;
+    --amber: #8B6914;
+    --amber-bg: #F4ECDA;
+    --red: #8B2914;
+    --red-bg: #F4DAD4;
+    --blue: #2B4E7A;
+    --blue-bg: #E0E8F0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 760px; margin: 0 auto; padding: 0 32px; }
+  .container-wide { max-width: 1120px; margin: 0 auto; padding: 0 32px; }
+
+  /* HERO */
+  header.hero {
+    padding: 96px 0 56px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 56px;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 28px;
+  }
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(44px, 6.5vw, 80px);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin-bottom: 28px;
+    font-variation-settings: "opsz" 144;
+  }
+  h1 em { font-style: italic; color: var(--accent); font-weight: 300; }
+  .deck {
+    font-family: 'Fraunces', serif;
+    font-size: 21px; line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 640px;
+    font-weight: 300;
+    font-style: italic;
+  }
+  .meta {
+    margin-top: 44px;
+    display: flex; gap: 28px; flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--ink-mute); letter-spacing: 0.05em;
+  }
+  .meta span strong { color: var(--ink-soft); font-weight: 500; }
+
+  /* TYPOGRAPHY */
+  h2 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 36px; line-height: 1.15; letter-spacing: -0.015em;
+    margin: 80px 0 8px;
+  }
+  h2 .num {
+    display: block;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--accent); margin-bottom: 12px; letter-spacing: 0.1em;
+  }
+  h3 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 23px; line-height: 1.3;
+    margin: 40px 0 14px;
+  }
+  h4 {
+    font-family: 'Inter', sans-serif; font-weight: 600;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent); margin: 28px 0 10px;
+  }
+  p { margin-bottom: 18px; color: var(--ink-soft); }
+  p.lede {
+    font-size: 21px; line-height: 1.55; color: var(--ink);
+    font-family: 'Fraunces', serif; font-weight: 400; margin-bottom: 28px;
+  }
+  p.lede::first-letter {
+    font-size: 70px; font-weight: 500; float: left; line-height: 0.85;
+    margin: 8px 12px 0 0; color: var(--accent);
+  }
+  strong { color: var(--ink); font-weight: 600; }
+  em { font-style: italic; }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.86em; background: var(--bg-subtle);
+    padding: 2px 6px; border-radius: 3px; color: var(--ink);
+  }
+  ul, ol { margin: 0 0 20px 24px; color: var(--ink-soft); }
+  ul li, ol li { margin-bottom: 6px; }
+
+  /* CALLOUT */
+  .callout {
+    background: var(--bg-subtle); border-left: 3px solid var(--accent);
+    padding: 24px 28px; margin: 28px 0;
+    font-family: 'Fraunces', serif; font-size: 17px;
+    line-height: 1.55; color: var(--ink); font-style: italic;
+  }
+  .callout::before {
+    content: '"'; font-size: 44px; color: var(--accent);
+    line-height: 0; position: relative; top: 14px; margin-right: 6px;
+  }
+
+  /* CODE BLOCK */
+  pre.code {
+    background: #16140F; color: #E8E3D6;
+    padding: 22px 26px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    line-height: 1.6; overflow-x: auto; margin: 20px 0;
+  }
+  pre.code .key { color: #F4B23A; }
+  pre.code .str { color: #A8D5A4; }
+  pre.code .com { color: #6B6657; font-style: italic; }
+  pre.code .num { color: #FF8B5F; }
+  pre.code .type { color: #87CEEB; }
+  pre.code .kw { color: #E94B7D; }
+
+  /* DIAGRAM */
+  .diagram {
+    background: var(--bg-card); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 36px 32px; margin: 28px 0; text-align: center;
+  }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram-caption {
+    font-family: 'Fraunces', serif; font-style: italic;
+    font-size: 13px; color: var(--ink-mute); margin-top: 16px;
+    line-height: 1.5;
+  }
+
+  /* COMPONENT CARDS */
+  .components {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px;
+    margin: 28px 0;
+  }
+  .component {
+    background: var(--bg-card); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 24px;
+  }
+  .component .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent); margin-bottom: 10px;
+  }
+  .component h4 {
+    font-family: 'Fraunces', serif; font-size: 19px; font-weight: 500;
+    color: var(--ink); margin: 0 0 8px;
+    text-transform: none; letter-spacing: -0.01em;
+  }
+  .component p { font-size: 14px; line-height: 1.55; margin: 0 0 10px; }
+  .component .where {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--ink-mute); margin-top: 8px;
+  }
+
+  /* TABLES */
+  table {
+    width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;
+  }
+  th, td {
+    padding: 12px 14px; text-align: left;
+    border-bottom: 1px solid var(--rule); vertical-align: top;
+  }
+  th {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-mute); font-weight: 500;
+    border-bottom: 1px solid var(--ink);
+  }
+  td.label {
+    font-family: 'Fraunces', serif; font-weight: 500; color: var(--ink);
+  }
+  td code, th code {
+    font-size: 0.85em;
+  }
+  .pill {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 2px 8px; border-radius: 11px; letter-spacing: 0.04em;
+  }
+  .pill.good { background: var(--green-bg); color: var(--green); }
+  .pill.mid { background: var(--amber-bg); color: var(--amber); }
+  .pill.bad { background: var(--red-bg); color: var(--red); }
+  .pill.info { background: var(--blue-bg); color: var(--blue); }
+
+  /* TWO-COLUMN COMPARISON */
+  .compare2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    margin: 24px 0;
+  }
+  .compare-card {
+    border: 1px solid var(--rule); border-radius: 4px;
+    background: var(--bg-card); padding: 22px;
+  }
+  .compare-card h4 {
+    font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500;
+    color: var(--ink); text-transform: none; letter-spacing: -0.01em;
+    margin: 0 0 12px;
+  }
+  .compare-card ul { font-size: 13px; line-height: 1.55; }
+
+  /* QUICK REF GRID */
+  .quickref { font-size: 13px; }
+  .quickref td.cmd {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg-subtle); width: 38%;
+  }
+
+  /* FOOTER */
+  footer {
+    margin-top: 100px; padding: 56px 0; border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--ink-mute); text-align: center; letter-spacing: 0.05em;
+  }
+  footer .line { margin-bottom: 8px; }
+  footer em { color: var(--accent); font-style: normal; }
+
+  /* TOC */
+  .toc {
+    background: var(--bg-card); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 24px 28px; margin: 32px 0;
+  }
+  .toc h4 {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--ink-mute); margin: 0 0 14px; letter-spacing: 0.1em;
+  }
+  .toc ol {
+    columns: 2; margin: 0; padding: 0; list-style: none;
+    font-size: 14px; column-gap: 32px;
+  }
+  .toc ol li {
+    margin-bottom: 8px; break-inside: avoid;
+  }
+  .toc a {
+    color: var(--ink); text-decoration: none;
+    border-bottom: 1px dotted var(--rule);
+  }
+  .toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+  .toc .num {
+    font-family: 'JetBrains Mono', monospace; color: var(--ink-mute);
+    font-size: 11px; margin-right: 8px;
+  }
+
+  @media (max-width: 720px) {
+    .components, .compare2 { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+    h1 { font-size: 40px; }
+    h2 { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <div class="eyebrow">The operator's manual · Reference No. 04</div>
+    <h1>agent-comms<em>+</em>verifier.</h1>
+    <p class="deck">A complete reference for a multi-agent system where workers verify before publishing, the substrate gets smarter over time, and trust is composed across hops. Built to be read by the operators of the system — human and agent alike.</p>
+    <div class="meta">
+      <span><strong>READ</strong> 22 min</span>
+      <span><strong>STATUS</strong> Production-ready</span>
+      <span><strong>UPDATED</strong> 2026·05·18</span>
+      <span><strong>REPO</strong> lotblocks/agent-comms-with-verifier</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <div class="toc">
+    <h4>Table of contents</h4>
+    <ol>
+      <li><span class="num">§ 01</span><a href="#overview">The system at a glance</a></li>
+      <li><span class="num">§ 02</span><a href="#components">The five components</a></li>
+      <li><span class="num">§ 03</span><a href="#architecture">Architecture diagram</a></li>
+      <li><span class="num">§ 04</span><a href="#flow">End-to-end message flow</a></li>
+      <li><span class="num">§ 05</span><a href="#memory">How memory works</a></li>
+      <li><span class="num">§ 06</span><a href="#dispatch">Dispatch logic — three modes</a></li>
+      <li><span class="num">§ 07</span><a href="#backends">Verifier backends</a></li>
+      <li><span class="num">§ 08</span><a href="#models">Model recommendations</a></li>
+      <li><span class="num">§ 09</span><a href="#usage">How to use the system</a></li>
+      <li><span class="num">§ 10</span><a href="#benefits">Benefits</a></li>
+      <li><span class="num">§ 11</span><a href="#improvements">Ways to improve</a></li>
+      <li><span class="num">§ 12</span><a href="#runbook">Runbook & quick reference</a></li>
+      <li><span class="num">§ 13</span><a href="#shapes">Data shapes glossary</a></li>
+    </ol>
+  </div>
+
+  <h2 id="overview"><span class="num">§ 01 — Overview</span>The system at a glance</h2>
+
+  <p class="lede">Three primitives. One substrate. Two thousand lines of code. A working model for multi-agent systems where every claim is checked, every conversation is auditable, and the system gets smarter every time it runs.</p>
+
+  <p>The system answers a question multi-agent frameworks usually leave open: <em>how do agents trust each other?</em> Hierarchical orchestrators paper over the question by serializing every decision through a single planner. Real peer-to-peer systems can't afford that — the planner becomes the bottleneck, the bug, and the single point of failure.</p>
+
+  <p>This system solves it by inverting the trust contract. Workers don't ask to be trusted; they prove it. Every reply carries a structured <strong>verification record</strong>: which claims about the output were checked, by what model, with what evidence, at what confidence, with what gaps still open. Receivers inspect that record and decide whether to accept. Over many runs, gap reports become permanent skill documentation improvements, and per-agent reputation scores let the system route around flaky workers — a flywheel where every interaction is signal, not noise.</p>
+
+  <div class="callout">An agent system isn't useful because it's clever; it's useful because the next agent in the chain can trust the result. This system ships the trust as data.</div>
+
+
+  <h2 id="components"><span class="num">§ 02 — Components</span>The five components</h2>
+
+  <div class="components">
+    <div class="component">
+      <div class="tag">Component 01</div>
+      <h4>The Bus</h4>
+      <p>SQLite-backed peer-to-peer message broker. Envelopes carry from/to, topic, conversation lineage, hop count, TTL, payload. Atomic claim-locking on receive so worker pools don't double-process. Loop prevention baked in.</p>
+      <div class="where">demos/comms-with-verifier/bus.py</div>
+    </div>
+    <div class="component">
+      <div class="tag">Component 02</div>
+      <h4>The Verifier</h4>
+      <p>Wraps any builder with claim validation. Decomposes output into atomic claims, verdicts each, remediates on failure, emits gap reports for unverifiable claims. Three pluggable backends (mock, Anthropic, Replicate) behind the same <code>verify()</code> signature.</p>
+      <div class="where">skills/verifier/run_skill_verified.py</div>
+    </div>
+    <div class="component">
+      <div class="tag">Component 03</div>
+      <h4>The Memory</h4>
+      <p>SQLite-backed durable learning store. Three scopes (global, agent.&lt;id&gt;, skill.&lt;name&gt;). Gap reports stored as memories; reinforced on repeat. Reputation tracked per-agent. Rendered as system-prompt hints for the LLM verifier.</p>
+      <div class="where">demos/comms-with-verifier/agent_memory.py</div>
+    </div>
+    <div class="component">
+      <div class="tag">Component 04</div>
+      <h4>The Agents</h4>
+      <p>Three reference agents — Alpha (requester), Beta (worker), Gamma (intermediate worker that talks to other workers peer-to-peer). All build on shared lifecycle helpers; verify-before-publish discipline is universal.</p>
+      <div class="where">demos/comms-with-verifier/agent_*.py</div>
+    </div>
+    <div class="component">
+      <div class="tag">Component 05</div>
+      <h4>The Dashboard</h4>
+      <p>Static HTML observability surface. Reads the bus DB, renders live agents, conversations grouped by chain, per-message verification banners, merged gap reports. Generated by a single Python script.</p>
+      <div class="where">demos/comms-with-verifier/build_dashboard.py</div>
+    </div>
+    <div class="component">
+      <div class="tag">Supporting</div>
+      <h4>Two more files worth knowing</h4>
+      <p><code>verification_chain.py</code> — walks nested verification records and emits a chain summary (weakest-link trust, total cost, merged gap reports). <code>agent_lifecycle.py</code> — graceful shutdown plumbing for production agents.</p>
+      <div class="where">verification_chain.py · agent_lifecycle.py</div>
+    </div>
+  </div>
+
+
+  <h2 id="architecture"><span class="num">§ 03 — Architecture</span>How the pieces fit</h2>
+
+  <p>The diagram below shows the whole substrate. The bus is the only shared dependency. Memory is independent — wiped, replaced, or persisted on its own schedule. Agents own their own process state. The verifier lives inside each worker, private but composable.</p>
+
+</main>
+
+<div class="container-wide">
+  <div class="diagram">
+    <svg viewBox="0 0 1080 580" xmlns="http://www.w3.org/2000/svg" style="max-width: 1000px;">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#16140F"/>
+        </marker>
+        <marker id="arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#B8482E"/>
+        </marker>
+      </defs>
+
+      <!-- BUS center -->
+      <rect x="320" y="240" width="440" height="64" rx="6" fill="#16140F"/>
+      <text x="540" y="268" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#FAFAF7" letter-spacing="0.12em">MESSAGE BUS</text>
+      <text x="540" y="286" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">SQLite · register · publish · send_direct · publish_to_role</text>
+
+      <!-- ALPHA -->
+      <rect x="30" y="120" width="180" height="80" rx="6" fill="none" stroke="#16140F" stroke-width="2"/>
+      <text x="120" y="148" text-anchor="middle" font-family="Fraunces, serif" font-size="17" fill="#16140F" font-weight="500">Alpha</text>
+      <text x="120" y="166" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">requester</text>
+      <text x="120" y="180" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">target-id | role | rep-min</text>
+
+      <!-- BETA -->
+      <rect x="710" y="40" width="320" height="220" rx="6" fill="none" stroke="#16140F" stroke-width="2"/>
+      <text x="870" y="68" text-anchor="middle" font-family="Fraunces, serif" font-size="17" fill="#16140F" font-weight="500">Beta · worker</text>
+      <text x="870" y="84" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">subs: inbox + role.worker</text>
+
+      <!-- Beta internals -->
+      <rect x="730" y="100" width="280" height="46" rx="4" fill="#F4E4DA" stroke="#B8482E" stroke-width="1.5"/>
+      <text x="870" y="118" text-anchor="middle" font-family="Fraunces, serif" font-size="13" fill="#16140F" font-weight="500">verifier orchestrator</text>
+      <text x="870" y="134" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">--backend mock | llm | replicate</text>
+
+      <rect x="730" y="156" width="135" height="40" rx="3" fill="none" stroke="#16140F" stroke-dasharray="2 2"/>
+      <text x="797" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">builder</text>
+      <text x="797" y="187" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">.py / skill</text>
+
+      <rect x="875" y="156" width="135" height="40" rx="3" fill="none" stroke="#16140F" stroke-dasharray="2 2"/>
+      <text x="942" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F">verifier</text>
+      <text x="942" y="187" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">pluggable</text>
+
+      <text x="870" y="220" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578" font-style="italic">work → verify → reply with chain_summary</text>
+
+      <!-- GAMMA -->
+      <rect x="710" y="320" width="320" height="120" rx="6" fill="none" stroke="#16140F" stroke-width="2"/>
+      <text x="870" y="348" text-anchor="middle" font-family="Fraunces, serif" font-size="17" fill="#16140F" font-weight="500">Gamma · intermediate worker</text>
+      <text x="870" y="364" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">subs: inbox + role.writer</text>
+      <text x="870" y="386" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#16140F" font-style="italic">also calls Beta peer-to-peer</text>
+      <text x="870" y="402" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">nests upstream verification</text>
+      <text x="870" y="418" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">parent_conversation_id linkage</text>
+
+      <!-- Lines: Alpha ↔ Bus -->
+      <line x1="210" y1="160" x2="320" y2="260" stroke="#16140F" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="320" y1="284" x2="210" y2="180" stroke="#16140F" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Lines: Beta ↔ Bus -->
+      <line x1="710" y1="150" x2="600" y2="240" stroke="#16140F" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="600" y1="304" x2="710" y2="200" stroke="#16140F" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Lines: Gamma ↔ Bus -->
+      <line x1="710" y1="380" x2="600" y2="304" stroke="#16140F" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="600" y1="284" x2="710" y2="370" stroke="#16140F" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Memory store under bus -->
+      <rect x="320" y="360" width="440" height="60" rx="4" fill="#F2EFE8" stroke="#E8E3D6" stroke-dasharray="3 3"/>
+      <text x="540" y="384" text-anchor="middle" font-family="Fraunces, serif" font-size="14" fill="#16140F" font-style="italic">Memory store (SQLite)</text>
+      <text x="540" y="400" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">global · skill.&lt;name&gt; · agent.&lt;id&gt;</text>
+      <text x="540" y="413" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">gap reports · reputation · failure patterns</text>
+
+      <!-- Dotted lines from agents to memory -->
+      <line x1="600" y1="304" x2="540" y2="360" stroke="#8A8578" stroke-width="1" stroke-dasharray="2 3"/>
+      <line x1="730" y1="200" x2="700" y2="360" stroke="#8A8578" stroke-width="1" stroke-dasharray="2 3"/>
+      <line x1="730" y1="380" x2="720" y2="380" stroke="#8A8578" stroke-width="1" stroke-dasharray="2 3"/>
+
+      <!-- Dashboard -->
+      <rect x="30" y="320" width="180" height="80" rx="6" fill="none" stroke="#16140F" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="120" y="345" text-anchor="middle" font-family="Fraunces, serif" font-size="15" fill="#16140F" font-weight="500" font-style="italic">Dashboard</text>
+      <text x="120" y="362" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">static HTML reader</text>
+      <text x="120" y="376" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">build_dashboard.py</text>
+      <text x="120" y="392" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">reads bus + memory</text>
+
+      <line x1="120" y1="320" x2="320" y2="284" stroke="#16140F" stroke-width="1" stroke-dasharray="3 3"/>
+      <line x1="180" y1="380" x2="320" y2="390" stroke="#16140F" stroke-width="1" stroke-dasharray="3 3"/>
+
+      <!-- Slack edge -->
+      <rect x="450" y="480" width="180" height="44" rx="4" fill="none" stroke="#8A8578" stroke-dasharray="3 3"/>
+      <text x="540" y="500" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578">SLACK / HUMANS</text>
+      <text x="540" y="514" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8A8578">escalation only</text>
+      <line x1="540" y1="480" x2="540" y2="420" stroke="#8A8578" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- Annotations -->
+      <text x="540" y="330" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A8578" font-style="italic">verification records, conversation chains</text>
+
+      <!-- Legend -->
+      <g transform="translate(30, 530)">
+        <text x="0" y="0" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="#16140F">LEGEND</text>
+        <rect x="0" y="14" width="14" height="3" fill="#16140F"/>
+        <text x="20" y="20" font-family="JetBrains Mono, monospace" font-size="10" fill="#4A463E">envelope flow</text>
+        <rect x="150" y="14" width="14" height="3" fill="#B8482E"/>
+        <text x="170" y="20" font-family="JetBrains Mono, monospace" font-size="10" fill="#4A463E">verifier (worker-private)</text>
+        <line x1="330" y1="17" x2="346" y2="17" stroke="#8A8578" stroke-width="1" stroke-dasharray="3 3"/>
+        <text x="350" y="20" font-family="JetBrains Mono, monospace" font-size="10" fill="#4A463E">memory & observability links</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Three agents on a shared bus. Each worker has its own verifier (any backend), reads and writes to a shared memory store, and replies with a verification record. The dashboard renders both bus and memory; Slack sits at the human edge for escalation only.</div>
+  </div>
+</div>
+
+<main class="container">
+
+
+  <h2 id="flow"><span class="num">§ 04 — Flow</span>One full request, end to end</h2>
+
+  <p>The compact version of what happens when Alpha asks for verified work, told as nine steps. The full sequence diagram lives in Reference No. 03; this is the abridged version with concrete file references.</p>
+
+  <ol>
+    <li><strong>Alpha sends a request.</strong> Either direct (<code>send_direct</code>), broadcast (<code>publish_to_role</code>), or reputation-aware pick. A new <code>conversation_id</code> is minted; envelope carries TTL and hop_count.</li>
+    <li><strong>Beta receives.</strong> Polls <code>bus.receive(subscriptions=[...])</code>; atomic claim-locking ensures one replica gets the message.</li>
+    <li><strong>Beta consults memory.</strong> If <code>AGENT_MEMORY_DB</code> is set, reads per-skill memories and appends them as MEMORY HINTS to <code>skill_doc</code>.</li>
+    <li><strong>Beta calls the verifier orchestrator.</strong> Subprocess to <code>run_skill_verified.py</code> with the chosen backend. The orchestrator runs the builder, decomposes into claims, remediates if needed.</li>
+    <li><strong>Verifier returns a record.</strong> Status (verified/failed/partial), all claims with verdicts, optional gap report, model and cost metadata.</li>
+    <li><strong>Beta stores memory.</strong> Gap reports become per-skill memories (deduped, reinforced). Reputation memory is bumped (success or failure).</li>
+    <li><strong>Beta builds <code>chain_summary</code>.</strong> Single-hop case for Beta; intermediate workers like Gamma nest their upstream verification first, then build chain_summary across all hops (weakest-link status, total cost, merged gap reports).</li>
+    <li><strong>Beta replies.</strong> <code>send_direct</code> to Alpha's id with response payload containing <code>verification</code> + <code>chain_summary</code>.</li>
+    <li><strong>Alpha trust-checks.</strong> Reads <code>chain_summary.chain_status</code> (end-to-end weakest link) — not local verification.status — and decides whether to accept.</li>
+  </ol>
+
+  <div class="callout">The trust handoff is the entire point. Alpha doesn't have to take Beta's word for it. Alpha sees the claims, evidence, model, cost, and gap reports. Trust travels as data.</div>
+
+
+  <h2 id="memory"><span class="num">§ 05 — Memory</span>How memory works (and persists)</h2>
+
+  <p>Memory is the flywheel. Every verification produces signal — gap reports name documentation gaps, failed claims name brittleness patterns, successful runs accumulate reputation. The memory store turns that signal into durable knowledge that biases future runs.</p>
+
+  <h3>Three scopes</h3>
+
+  <table>
+    <thead><tr><th>Scope</th><th>Purpose</th><th>Example content</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="label">global</td>
+        <td>Shared facts across the whole system</td>
+        <td>"Skills returning PII must include a redaction summary"</td>
+      </tr>
+      <tr>
+        <td class="label">skill.&lt;name&gt;</td>
+        <td>Per-skill knowledge — gaps, failure patterns</td>
+        <td>"demo-compute-total often omits timestamp on first attempt"</td>
+      </tr>
+      <tr>
+        <td class="label">agent.&lt;id&gt;</td>
+        <td>Per-agent reputation, preferences</td>
+        <td>"agent_beta_flaky: 0/3 success rate"</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>The flywheel — closed loop</h3>
+
+  <pre class="code"><span class="com">Step 1: First run on a skill</span>
+  Verifier emits gap_report (unverifiable claim)
+       ↓
+  Worker calls memory.store_gap(skill_name, gap)
+       ↓
+  <span class="com">Step 2: Second run on the same skill</span>
+  Worker calls memory.claim_guidelines_for_skill(skill_name)
+       ↓
+  Returns rendered hints appended to skill_doc:
+       "KNOWN DOCUMENTATION GAPS FOR THIS SKILL: ..."
+       ↓
+  LLM verifier sees hints in its system prompt
+       ↓
+  Produces more precise claims that target the known gap
+       ↓
+  Either the gap is now verifiable (signal: docs fixed)
+  OR it's still unverifiable (signal: reinforce memory)
+       ↓
+  <span class="com">Step 3: store_gap deduplicates by (scope, subject, statement)</span>
+  Same observation → bump use_count + importance by 0.05 (capped at 1.0)
+  Not a duplicate row — a reinforced one
+       ↓
+  <span class="com">Result:</span> heavy-use skills accumulate a curated knowledge base of their own quirks</pre>
+
+  <h3>Persistence</h3>
+
+  <p>Memory lives in its own SQLite file, deliberately separate from the bus DB. The bus represents one conversation epoch; memory represents the system's accumulated knowledge across all conversations. Wipe the bus to start fresh — memories survive.</p>
+
+  <table>
+    <thead><tr><th>Property</th><th>Bus DB</th><th>Memory DB</th></tr></thead>
+    <tbody>
+      <tr><td class="label">File</td><td><code>_demo_bus.sqlite</code></td><td><code>_agent_memory.sqlite</code></td></tr>
+      <tr><td class="label">Lifecycle</td><td>Per-run; wiped between demos</td><td>Long-lived; survives across runs</td></tr>
+      <tr><td class="label">Owner</td><td>The bus library</td><td>MemoryStore class in agent_memory.py</td></tr>
+      <tr><td class="label">Enabled via</td><td>Bus constructor (always)</td><td><code>AGENT_MEMORY_DB</code> env var or <code>--memory-db</code> flag</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Key MemoryStore methods</h4>
+  <pre class="code"><span class="kw">store</span>(scope, category, content, subject, importance)        <span class="com">// generic</span>
+<span class="kw">store_gap</span>(skill_name, gap_report)                            <span class="com">// dedup + reinforce</span>
+<span class="kw">store_failure_pattern</span>(skill_name, claim_id, ...)             <span class="com">// for "X failed because Y, fixed by Z"</span>
+<span class="kw">store_reputation</span>(agent_id, success)                          <span class="com">// 1 bump per run</span>
+<span class="kw">reputation_summary</span>(agent_id) → {successes, total, success_rate}
+<span class="kw">claim_guidelines_for_skill</span>(skill_name) → string (for system prompt)
+<span class="kw">recall</span>(scope, category?, subject?, limit) → list[Memory]</pre>
+
+
+  <h2 id="dispatch"><span class="num">§ 06 — Dispatch</span>Three routing modes</h2>
+
+  <p>The same agent can be addressed three ways. Each has different semantics and best-fit scenarios.</p>
+
+  <div class="compare2">
+    <div class="compare-card">
+      <h4>1. Direct addressing</h4>
+      <p style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-mute);">--target-id agent_beta_1</p>
+      <ul>
+        <li>Caller picks a specific replica by id</li>
+        <li>Message goes to that replica's personal inbox</li>
+        <li>Use when: pinning to a known agent for traceability or pinning experiments</li>
+      </ul>
+    </div>
+    <div class="compare-card">
+      <h4>2. Topic fanout</h4>
+      <p style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-mute);">--target-role worker</p>
+      <ul>
+        <li>Caller publishes to <code>role.&lt;role&gt;</code> topic</li>
+        <li>Any subscribed replica can claim (first-come)</li>
+        <li>Use when: load-balancing across worker pools — the bus's atomic claim-locking is the load balancer</li>
+      </ul>
+    </div>
+    <div class="compare-card">
+      <h4>3. Reputation-aware pick</h4>
+      <p style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-mute);">--target-role worker --reputation-min 0.6</p>
+      <ul>
+        <li>Caller queries memory; filters replicas by success_rate</li>
+        <li>Picks one trusted replica; falls back to topic-fanout if none</li>
+        <li>Use when: routing around known-flaky workers; high-stakes operations</li>
+      </ul>
+    </div>
+    <div class="compare-card">
+      <h4>Probation rule</h4>
+      <p style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-mute);">min_reputation_samples: 3 (default)</p>
+      <ul>
+        <li>Replicas with fewer than N samples get a probation pass</li>
+        <li>New agents aren't filtered out just because they haven't earned reputation yet</li>
+        <li>Configurable per call</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Decision tree</h3>
+  <pre class="code"><span class="com">Need to address a worker?</span>
+
+  Do you know the specific agent_id?
+    ├── YES → use <span class="kw">--target-id</span> (direct addressing)
+    └── NO
+        Do you have a worker pool with replicas?
+          ├── YES
+          │   Do some replicas have a track record (reputation)?
+          │     ├── YES, and quality matters → <span class="kw">--target-role + --reputation-min</span>
+          │     └── NO, or all equivalent     → <span class="kw">--target-role</span> (topic fanout)
+          └── NO, one worker → <span class="kw">--target-id</span> with its known id</pre>
+
+
+  <h2 id="backends"><span class="num">§ 07 — Backends</span>Which verifier to use</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Backend</th>
+        <th>Cost</th>
+        <th>Quality</th>
+        <th>Latency</th>
+        <th>Setup</th>
+        <th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="label">mock</td>
+        <td><span class="pill good">free</span></td>
+        <td><span class="pill bad">deterministic stub</span></td>
+        <td><span class="pill good">&lt;1 ms</span></td>
+        <td><span class="pill good">none</span></td>
+        <td>Offline tests; orchestration debugging; CI</td>
+      </tr>
+      <tr>
+        <td class="label">llm (Anthropic)</td>
+        <td><span class="pill mid">$0.003-0.015/call</span></td>
+        <td><span class="pill good">high — Claude Sonnet/Opus</span></td>
+        <td><span class="pill mid">2-10s</span></td>
+        <td><span class="pill mid">ANTHROPIC_API_KEY</span></td>
+        <td>Highest-stakes production; nuanced claim reasoning</td>
+      </tr>
+      <tr>
+        <td class="label">replicate</td>
+        <td><span class="pill good">~$0.0002/call</span></td>
+        <td><span class="pill mid">good — Llama-3, Mistral, etc.</span></td>
+        <td><span class="pill mid">1-8s</span></td>
+        <td><span class="pill mid">REPLICATE_API_TOKEN</span></td>
+        <td>High-volume verification; cost-sensitive deployments</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>End-to-end tested</h3>
+  <p>The Replicate backend has been verified end-to-end against the real API. A live call to <code>meta/meta-llama-3-8b-instruct</code> with the verifier system prompt returned a 7-claim JSON record that parsed correctly through <code>replicate_verifier.py</code>'s logic into a <code>VerificationRecord</code> with <code>status=verified</code>. Cost for that call: ~$0.0002.</p>
+
+  <h3>Adding a fourth backend</h3>
+  <p>Any provider with a chat-completion API (OpenRouter, OpenAI, Groq, Together, etc.) can be added in ~150 lines following the pattern of <code>replicate_verifier.py</code>. Implement the same <code>verify()</code> signature, wire it into <code>_load_verifier()</code> in <code>run_skill_verified.py</code>, and declare the API key in the skill credential schema.</p>
+
+
+  <h2 id="models"><span class="num">§ 08 — Models</span>Recommendations for builder + verifier pairings</h2>
+
+  <p>The verifier should be from a <strong>different model family</strong> than the builder. Same-family pairings risk shared blind spots — both models miss the same kinds of bugs. Different families have different failure modes, which is the whole point.</p>
+
+  <h3>Recommended pairings</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Builder</th>
+        <th>Recommended verifier</th>
+        <th>Backend</th>
+        <th>Why</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>claude-opus</code></td>
+        <td><code>gpt-4.5</code> or <code>llama-3-70b</code></td>
+        <td>llm or replicate</td>
+        <td>Cross-family; verifier doesn't share Claude's reasoning quirks</td>
+      </tr>
+      <tr>
+        <td><code>claude-sonnet</code></td>
+        <td><code>llama-3-70b-instruct</code></td>
+        <td>replicate</td>
+        <td>Strong, cheap independent reasoning</td>
+      </tr>
+      <tr>
+        <td><code>gpt-4.5</code></td>
+        <td><code>claude-sonnet</code> or <code>claude-opus</code></td>
+        <td>llm</td>
+        <td>Anthropic's reasoning often catches what GPT misses</td>
+      </tr>
+      <tr>
+        <td><code>llama-3-8b</code></td>
+        <td><code>llama-3-70b</code> or <code>claude-haiku</code></td>
+        <td>replicate or llm</td>
+        <td>Step up to a stronger reasoner for verification</td>
+      </tr>
+      <tr>
+        <td><code>llama-3-70b</code></td>
+        <td><code>claude-sonnet</code></td>
+        <td>llm</td>
+        <td>Cross-family check on big-Llama work</td>
+      </tr>
+      <tr>
+        <td><code>any (testing)</code></td>
+        <td><code>mock</code></td>
+        <td>mock</td>
+        <td>Orchestration testing only — never production</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Strictness and claim counts</h3>
+  <p>The <code>--strictness</code> flag governs how many claims the verifier produces per pass:</p>
+
+  <ul>
+    <li><strong>low</strong> — 3-5 claims; structural only. Fast, cheap, for low-stakes outputs.</li>
+    <li><strong>medium</strong> (default) — 5-7 claims; structural + behavioral. The right default.</li>
+    <li><strong>high</strong> — 10-12 claims; all five types. For high-stakes operations (payments, deletions, public posts).</li>
+  </ul>
+
+
+  <h2 id="usage"><span class="num">§ 09 — Usage</span>How to use the system</h2>
+
+  <h3>Installation</h3>
+  <pre class="code">git clone https://github.com/lotblocks/agent-comms-with-verifier.git
+cd agent-comms-with-verifier
+<span class="com"># No dependencies beyond Python 3.9+ stdlib</span></pre>
+
+  <h3>The five demos, in order of complexity</h3>
+  <pre class="code"><span class="com"># 1. Two-agent — Alpha asks Beta directly</span>
+cd demos/comms-with-verifier
+python3 run_demo.py
+
+<span class="com"># 2. Three-agent — Alpha → Gamma → Beta peer-to-peer</span>
+python3 run_three_agent_demo.py
+
+<span class="com"># 3. Concurrent worker pool — 5 alphas × 2 gammas × 2 betas</span>
+python3 run_concurrent_demo.py
+
+<span class="com"># 4. Learning — same task twice; memory accumulates</span>
+python3 run_learning_demo.py
+
+<span class="com"># 5. Reputation-weighted dispatch — flaky replica gets routed around</span>
+python3 run_reputation_demo.py</pre>
+
+  <h3>Three common production patterns</h3>
+
+  <h4>Pattern A — Single worker</h4>
+  <pre class="code"><span class="com"># Beta serves forever; Alpha clients arrive over time</span>
+python3 agent_beta.py --db ./bus.sqlite --my-id agent_beta \
+    --serve-forever --memory-db ./memory.sqlite
+
+<span class="com"># Client (could be any process)</span>
+python3 agent_alpha.py --db ./bus.sqlite --my-id alpha_clientA \
+    --target-id agent_beta --task compute_total \
+    --intent "compute the total"</pre>
+
+  <h4>Pattern B — Worker pool with role-based fanout</h4>
+  <pre class="code"><span class="com"># N replicas of the same role, atomic claim-locking handles distribution</span>
+python3 agent_beta.py --db ./bus.sqlite --my-id agent_beta_1 --serve-forever &
+python3 agent_beta.py --db ./bus.sqlite --my-id agent_beta_2 --serve-forever &
+python3 agent_beta.py --db ./bus.sqlite --my-id agent_beta_3 --serve-forever &
+
+<span class="com"># Clients publish to role topic; one replica claims each</span>
+python3 agent_alpha.py --db ./bus.sqlite \
+    --target-role worker --task compute_total \
+    --intent "compute the total"</pre>
+
+  <h4>Pattern C — Reputation-weighted routing for high-stakes work</h4>
+  <pre class="code"><span class="com"># Same pool, but Alpha filters by reputation</span>
+python3 agent_alpha.py --db ./bus.sqlite \
+    --target-role worker --reputation-min 0.95 \
+    --memory-db ./memory.sqlite \
+    --task compute_total --intent "..."</pre>
+
+
+  <h2 id="benefits"><span class="num">§ 10 — Benefits</span>What this system does well</h2>
+
+  <ol>
+    <li><strong>Composition without coupling.</strong> Bus and verifier are independent; they compose because workers happen to include verification records in their replies.</li>
+    <li><strong>Trust travels as data.</strong> Every response includes claims, evidence, model, cost. Receivers apply their own policy.</li>
+    <li><strong>Workers self-check before publishing.</strong> Failures don't escape; remediation happens at the source.</li>
+    <li><strong>Independent failure modes.</strong> Cross-family verifier; separate processes; separate stores. Same-cause failures across layers are unlikely.</li>
+    <li><strong>Documentation flywheel.</strong> Gap reports → memory → system-prompt hints → tighter claims. Skills get sharper with every run.</li>
+    <li><strong>Bounded blast radius.</strong> TTL on every envelope. Hop count cap. Max-attempts cap. Per-attempt budget cap. Heartbeat staleness. Loops cannot persist.</li>
+    <li><strong>Reputation-weighted routing.</strong> Bad replicas get filtered out, with probation for new agents to prove themselves.</li>
+    <li><strong>Memory accumulation across runs.</strong> Gap reports dedup and reinforce — repeated observations matter more, not just more numerous.</li>
+    <li><strong>Three pluggable backends.</strong> Mock for offline, Anthropic for high stakes, Replicate for cost-sensitive volume. Swap with one CLI flag.</li>
+    <li><strong>Multi-hop trust composition.</strong> Weakest-link chain_status across all verification hops. Cost and gap reports aggregated end-to-end.</li>
+    <li><strong>Fully observable.</strong> Every message is a SQLite row. Every claim is recorded. Every conversation is replayable. Bus is the log.</li>
+    <li><strong>Production swap-in is one change per layer.</strong> SQLite→Postgres, mock→LLM, subprocess→real skill. Local changes only.</li>
+  </ol>
+
+
+  <h2 id="improvements"><span class="num">§ 11 — Improvements</span>What still isn't done</h2>
+
+  <p>Honest list of what's deferred. Some are v2 features; some are platform limitations; some are intentional non-goals.</p>
+
+  <h4>Deferred for v2</h4>
+  <ul>
+    <li><strong>Agentic verifier with tool access</strong> — current LLM verifier is single-call; behavioral claims that need execution are marked unverifiable</li>
+    <li><strong>Human-in-the-loop attestation</strong> — high-stakes claims routed to a human channel for approval before publish</li>
+    <li><strong>Cross-skill chain verification</strong> — verify that data from step 1 is what step 2 acted on</li>
+    <li><strong>Streaming / incremental verification</strong> — currently end-of-skill only</li>
+    <li><strong>Reputation decay</strong> — current scoring is raw success/total; old failures should weigh less than recent</li>
+    <li><strong>Stake-weighted reputation</strong> — a failure on a $10k operation should matter more than one on a test query</li>
+    <li><strong>Topic-claim reputation hooks</strong> — agents could self-deselect from role topics if their reputation drops</li>
+  </ul>
+
+  <h4>Platform-level (would change the substrate)</h4>
+  <ul>
+    <li><strong>Postgres LISTEN/NOTIFY or Redis transport</strong> — for sub-100ms coordination</li>
+    <li><strong>Cross-tenant isolation</strong> — multi-customer deployments need per-tenant buses or row-level ACLs</li>
+    <li><strong>Rubric integration</strong> — verifications could feed Hyperagent's eval system as training data</li>
+  </ul>
+
+  <h4>Intentional non-goals</h4>
+  <ul>
+    <li><strong>Recursive verification</strong> — verifier cannot itself call <code>RunSkillVerified</code>. Turtles-all-the-way-down is explicitly disallowed.</li>
+    <li><strong>Schedule-based workflows</strong> — that's what Hyperagent's live-mode agents are for; the bus is for in-flight messaging.</li>
+  </ul>
+
+
+  <h2 id="runbook"><span class="num">§ 12 — Runbook</span>Quick reference</h2>
+
+  <h3>Commands</h3>
+  <table class="quickref">
+    <tbody>
+      <tr><td class="cmd">python3 run_demo.py</td><td>Two-agent demo</td></tr>
+      <tr><td class="cmd">python3 run_three_agent_demo.py</td><td>Three-agent demo</td></tr>
+      <tr><td class="cmd">python3 run_concurrent_demo.py</td><td>Worker pool stress test (6 assertions)</td></tr>
+      <tr><td class="cmd">python3 run_learning_demo.py</td><td>Memory accumulation demo</td></tr>
+      <tr><td class="cmd">python3 run_reputation_demo.py</td><td>Reputation-weighted dispatch demo (3 assertions)</td></tr>
+      <tr><td class="cmd">python3 build_dashboard.py</td><td>Generate static HTML dashboard</td></tr>
+      <tr><td class="cmd">python3 test_smoke.py</td><td>Mock verifier orchestration test (20 assertions)</td></tr>
+      <tr><td class="cmd">python3 test_llm_parsing.py</td><td>LLM verifier parser test (16 assertions, no network)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Environment variables</h3>
+  <table>
+    <thead><tr><th>Variable</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><code>VERIFIER_BACKEND</code></td><td>mock / llm / replicate (default mock)</td></tr>
+      <tr><td><code>VERIFIER_MODEL</code></td><td>Anthropic model override (default claude-sonnet-4-5)</td></tr>
+      <tr><td><code>VERIFIER_REPLICATE_MODEL</code></td><td>Replicate model (default meta/meta-llama-3-8b-instruct)</td></tr>
+      <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Required for --backend llm</td></tr>
+      <tr><td><code>REPLICATE_API_TOKEN</code></td><td>Required for --backend replicate</td></tr>
+      <tr><td><code>AGENT_MEMORY_DB</code></td><td>Path to MemoryStore SQLite — enables learning</td></tr>
+      <tr><td><code>REMEDIATION_PROMPT</code></td><td>Set by orchestrator on retry; builders read to know what to fix</td></tr>
+      <tr><td><code>DATA_INPUT</code></td><td>Set by Gamma when passing upstream data to its builder</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Common CLI flags</h3>
+  <table>
+    <thead><tr><th>Flag</th><th>Where</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>--db</code></td><td>all agents</td><td>SQLite bus DB path</td></tr>
+      <tr><td><code>--my-id</code></td><td>all agents</td><td>This agent's id</td></tr>
+      <tr><td><code>--memory-db</code></td><td>all agents</td><td>MemoryStore path (or use env var)</td></tr>
+      <tr><td><code>--serve-forever</code></td><td>workers</td><td>Run until SIGTERM/SIGINT</td></tr>
+      <tr><td><code>--max-requests</code></td><td>workers</td><td>Exit after N requests (demo mode)</td></tr>
+      <tr><td><code>--idle-timeout-sec</code></td><td>workers</td><td>Exit after N seconds idle (demo mode)</td></tr>
+      <tr><td><code>--simulate-failure-rate</code></td><td>agent_beta</td><td>Force fail rate for reputation demos</td></tr>
+      <tr><td><code>--target-id</code></td><td>agent_alpha</td><td>Direct-address a specific replica</td></tr>
+      <tr><td><code>--target-role</code></td><td>agent_alpha</td><td>Publish to role.&lt;role&gt; topic</td></tr>
+      <tr><td><code>--reputation-min</code></td><td>agent_alpha</td><td>Reputation-aware pick (requires --memory-db)</td></tr>
+      <tr><td><code>--task</code></td><td>agent_alpha</td><td>compute_total / write_report</td></tr>
+      <tr><td><code>--backend</code></td><td>run_skill_verified.py</td><td>mock / llm / replicate</td></tr>
+      <tr><td><code>--strictness</code></td><td>run_skill_verified.py</td><td>low / medium / high</td></tr>
+      <tr><td><code>--max-attempts</code></td><td>run_skill_verified.py</td><td>Default 2; max remediation attempts</td></tr>
+    </tbody>
+  </table>
+
+
+  <h2 id="shapes"><span class="num">§ 13 — Glossary</span>Data shapes worth knowing</h2>
+
+  <pre class="code"><span class="com">// Envelope — every message on the bus</span>
+{
+  <span class="key">"id"</span>: <span class="str">"msg_<12 hex>"</span>,
+  <span class="key">"conversation_id"</span>: <span class="str">"cnv_<12 hex>"</span>,
+  <span class="key">"parent_conversation_id"</span>: <span class="str">"cnv_<12 hex>"</span>,    <span class="com">// for nested sub-conversations</span>
+  <span class="key">"from_agent"</span>: <span class="str">"agent_alpha"</span>,
+  <span class="key">"to_agent"</span>: <span class="str">"agent_gamma"</span>,
+  <span class="key">"topic"</span>: <span class="num">null</span>,                              <span class="com">// or "role.worker"</span>
+  <span class="key">"msg_type"</span>: <span class="str">"request"</span>,                       <span class="com">// or "response" or "event"</span>
+  <span class="key">"reply_to"</span>: <span class="num">null</span>,                           <span class="com">// for threading</span>
+  <span class="key">"hop_count"</span>: <span class="num">0</span>,                              <span class="com">// max 8</span>
+  <span class="key">"ttl_seconds"</span>: <span class="num">300</span>,
+  <span class="key">"created_at"</span>: <span class="num">1779140000.0</span>,
+  <span class="key">"payload"</span>: { <span class="com">/* application-defined */</span> }
+}</pre>
+
+  <pre class="code"><span class="com">// VerificationRecord — what every verifier returns</span>
+{
+  <span class="key">"status"</span>: <span class="str">"verified"</span>,                       <span class="com">// or "failed" or "partial"</span>
+  <span class="key">"claims"</span>: [<span class="type">Claim</span>],
+  <span class="key">"gap_report"</span>: <span class="type">GapReport</span> | <span class="num">null</span>,
+  <span class="key">"verifier_model"</span>: <span class="str">"meta/meta-llama-3-8b-instruct"</span>,
+  <span class="key">"duration_ms"</span>: <span class="num">8089</span>,
+  <span class="key">"cost_usd"</span>: <span class="num">0.0002</span>,
+  <span class="key">"upstream_verification"</span>: <span class="type">VerificationRecord</span> | <span class="num">null</span>   <span class="com">// for chain composition</span>
+}</pre>
+
+  <pre class="code"><span class="com">// ChainSummary — embedded in response payloads</span>
+{
+  <span class="key">"chain_status"</span>: <span class="str">"verified"</span>,                  <span class="com">// weakest-link across all hops</span>
+  <span class="key">"hop_count"</span>: <span class="num">2</span>,
+  <span class="key">"total_attempts"</span>: <span class="num">4</span>,
+  <span class="key">"total_cost_usd"</span>: <span class="num">0.0004</span>,
+  <span class="key">"total_duration_ms"</span>: <span class="num">12340</span>,
+  <span class="key">"per_hop"</span>: [
+    {<span class="key">"verifier_model"</span>: <span class="str">"..."</span>, <span class="key">"status"</span>: <span class="str">"..."</span>, ...},
+    ...
+  ],
+  <span class="key">"merged_gap_report"</span>: <span class="type">GapReport</span> | <span class="num">null</span>             <span class="com">// deduped across all hops</span>
+}</pre>
+
+  <pre class="code"><span class="com">// Claim — the atomic unit of verification</span>
+{
+  <span class="key">"id"</span>: <span class="str">"claim_001"</span>,
+  <span class="key">"type"</span>: <span class="str">"existential | structural | behavioral | factual | semantic | negative"</span>,
+  <span class="key">"statement"</span>: <span class="str">"..."</span>,
+  <span class="key">"evidence_required"</span>: <span class="str">"..."</span>,
+  <span class="key">"evidence_collected"</span>: { <span class="com">/* what verifier observed */</span> } | <span class="num">null</span>,
+  <span class="key">"verdict"</span>: <span class="str">"pass | fail | unverifiable"</span>,
+  <span class="key">"confidence"</span>: <span class="num">0.0-1.0</span>,
+  <span class="key">"reasoning"</span>: <span class="str">"..."</span>
+}</pre>
+
+  <pre class="code"><span class="com">// Memory — durable learning store row</span>
+{
+  <span class="key">"id"</span>: <span class="str">"mem_<12 hex>"</span>,
+  <span class="key">"scope"</span>: <span class="str">"skill.demo-compute-total"</span>,           <span class="com">// or "global" or "agent.<id>"</span>
+  <span class="key">"category"</span>: <span class="str">"gap"</span>,                          <span class="com">// or "failure_pattern", "reputation", "fact"</span>
+  <span class="key">"subject"</span>: <span class="str">"claim_004"</span>,
+  <span class="key">"content"</span>: { <span class="com">/* category-specific */</span> },
+  <span class="key">"importance"</span>: <span class="num">0.7</span>,                          <span class="com">// 0.0-1.0; bumps on reinforcement</span>
+  <span class="key">"use_count"</span>: <span class="num">1</span>,                              <span class="com">// increments each recall + reinforcement</span>
+  <span class="key">"created_at"</span>: <span class="num">1779140000.0</span>,
+  <span class="key">"last_used_at"</span>: <span class="num">1779143000.0</span>
+}</pre>
+
+  <div class="callout">The data shapes are the contract. As long as you preserve these schemas, every other component composes. Add a 4th backend, a 4th agent role, a new memory category — the rest of the system doesn't change.</div>
+
+</main>
+
+<footer>
+  <div class="line">The operator's manual · Reference No. 04 · <em>agent-comms-with-verifier</em></div>
+  <div class="line">Companion to Refs 01 (Agent comms) · 02 (Verifier primitive) · 03 (Composed system).</div>
+  <div class="line">Repo: github.com/lotblocks/agent-comms-with-verifier</div>
+</footer>
+
+</body>
+</html>

@@ -71,7 +71,8 @@ def run_verified_builder(*, builder_script: str, skill_name: str, skill_doc: str
 
 
 def handle_request(bus: Bus, my_id: str, msg: dict,
-                   memory: MemoryStore | None = None) -> None:
+                   memory: MemoryStore | None = None,
+                   simulate_failure_rate: float = 0.0) -> None:
     payload = msg["payload"]
     task = payload.get("task")
     conv_id = msg["conversation_id"]
@@ -92,8 +93,17 @@ def handle_request(bus: Bus, my_id: str, msg: dict,
             memory=memory,
         )
 
-        # Learning step: store any gap reports as per-skill memories so the
-        # next run consults them. Track reputation per worker.
+        # Simulate failures if configured (demo mode for reputation-weighted dispatch).
+        success = result.get("verification", {}).get("status") == "verified"
+        if simulate_failure_rate > 0.0:
+            import random
+            if random.random() < simulate_failure_rate:
+                print(f"[beta] {my_id}: simulating failure for demo (rate={simulate_failure_rate})",
+                      flush=True)
+                success = False
+                result["verification"]["status"] = "failed"
+
+        # Learning step: store gap reports + reputation.
         if memory is not None:
             gap = result.get("verification", {}).get("gap_report")
             if gap:
@@ -101,7 +111,6 @@ def handle_request(bus: Bus, my_id: str, msg: dict,
                 if stored:
                     print(f"[beta] stored {len(stored)} gap memories for {skill_name}",
                           flush=True)
-            success = result.get("verification", {}).get("status") == "verified"
             memory.store_reputation(my_id, success)
         # Try to parse the inner result string back into a dict for cleaner downstream.
         try:
@@ -160,6 +169,9 @@ def main() -> int:
                              "run until SIGTERM/SIGINT")
     parser.add_argument("--memory-db", default=os.environ.get("AGENT_MEMORY_DB", ""),
                         help="path to a MemoryStore SQLite file; empty = no memory")
+    parser.add_argument("--simulate-failure-rate", type=float, default=0.0,
+                        help="fraction (0.0-1.0) of requests this replica should "
+                             "fail intentionally — used to differentiate reputation in demos")
     args = parser.parse_args()
 
     bus = Bus(args.db)
@@ -203,7 +215,8 @@ def main() -> int:
             if m["msg_type"] != "request":
                 continue
             try:
-                handle_request(bus, args.my_id, m, memory=memory)
+                handle_request(bus, args.my_id, m, memory=memory,
+                               simulate_failure_rate=args.simulate_failure_rate)
                 handled += 1
             except Exception as e:
                 print(f"[beta] error handling request: {e}", flush=True)

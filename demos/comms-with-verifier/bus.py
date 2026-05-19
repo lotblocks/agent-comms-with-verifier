@@ -132,32 +132,73 @@ class Bus:
 
     # ---------- role-based discovery ----------
 
-    def find_agents_by_role(self, role: str, alive_only: bool = True) -> list[dict]:
+    def find_agents_by_role(
+        self,
+        role: str,
+        alive_only: bool = True,
+        memory_store: Any = None,
+        reputation_min: Optional[float] = None,
+        min_reputation_samples: int = 3,
+    ) -> list[dict]:
         """Return all agents matching the given role.
 
         With alive_only=True (default), only agents within the heartbeat window
-        are returned. Sorted by least-recently-active first to encourage even
-        load distribution across replicas.
+        are returned. Sorted by least-recently-active first for fairness.
+
+        Reputation-aware filtering (optional):
+            Pass `memory_store` (a MemoryStore instance) and `reputation_min`
+            (a float 0.0-1.0). Agents with success_rate below the threshold
+            are filtered out, UNLESS they have fewer than min_reputation_samples
+            samples (so new agents get a chance to prove themselves).
         """
         candidates = [a for a in self.list_agents(include_stale=not alive_only)
                       if a["role"] == role]
         if alive_only:
             candidates = [a for a in candidates if a["is_alive"]]
-        # Least-recently-active first → round-robin-ish fairness for stateless workers.
+
+        if memory_store is not None and reputation_min is not None:
+            filtered = []
+            for a in candidates:
+                rep = memory_store.reputation_summary(a["id"])
+                # New agents (insufficient samples) get a probation pass.
+                if rep["total"] < min_reputation_samples:
+                    a = dict(a)
+                    a["_reputation_status"] = "probation"
+                    filtered.append(a)
+                    continue
+                if (rep["success_rate"] or 0) >= reputation_min:
+                    a = dict(a)
+                    a["_reputation_status"] = "trusted"
+                    a["_reputation_score"] = rep["success_rate"]
+                    filtered.append(a)
+                # Else: filtered out for low reputation.
+            candidates = filtered
+
         candidates.sort(key=lambda a: a["last_heartbeat"])
         return candidates
 
-    def pick_agent_by_role(self, role: str, exclude: Optional[set[str]] = None) -> Optional[dict]:
+    def pick_agent_by_role(
+        self,
+        role: str,
+        exclude: Optional[set[str]] = None,
+        memory_store: Any = None,
+        reputation_min: Optional[float] = None,
+    ) -> Optional[dict]:
         """Pick one live agent matching a role.
 
-        exclude is an optional set of agent_ids to skip (useful when you already
-        sent to one and want a fallback).
+        exclude is an optional set of agent_ids to skip.
+
+        Reputation-aware picks: pass memory_store + reputation_min to skip
+        replicas with bad track records (with probation for new agents).
 
         NOTE: for true worker-pool fanout, prefer publish_to_role() — the bus's
         atomic claim-locking is a better load balancer than caller-side picking.
         """
         exclude = exclude or set()
-        for a in self.find_agents_by_role(role, alive_only=True):
+        for a in self.find_agents_by_role(
+            role, alive_only=True,
+            memory_store=memory_store, reputation_min=reputation_min,
+        ):
             if a["id"] not in exclude:
                 return a
         return None

@@ -48,17 +48,22 @@ import remediation
 def _load_verifier(backend: str):
     """Pluggable verifier backend selection.
 
-    Both backends implement the same verify() signature defined in schemas.
-    Defaults to mock for deterministic tests; switch to llm for real claim
-    decomposition. The CLI takes precedence; env var is the fallback.
+    All backends implement the same verify() signature defined in schemas.
+    Defaults to mock for deterministic tests; switch to llm (Anthropic) or
+    replicate (Replicate/Llama-3 etc.) for real claim decomposition.
     """
     if backend == "llm":
         import llm_verifier
         return llm_verifier
+    if backend == "replicate":
+        import replicate_verifier
+        return replicate_verifier
     if backend == "mock":
         import mock_verifier
         return mock_verifier
-    raise ValueError(f"Unknown verifier backend: {backend!r} (expected 'mock' or 'llm')")
+    raise ValueError(
+        f"Unknown verifier backend: {backend!r} (expected 'mock', 'llm', or 'replicate')"
+    )
 
 
 # ---------- subprocess: run the builder ----------
@@ -172,7 +177,7 @@ def main() -> int:
     parser.add_argument(
         "--backend",
         default=os.environ.get("VERIFIER_BACKEND", "mock"),
-        choices=["mock", "llm"],
+        choices=["mock", "llm", "replicate"],
         help="verifier backend (default: mock; env VERIFIER_BACKEND overrides)",
     )
     parser.add_argument("--pretty", action="store_true", help="pretty-print the result")

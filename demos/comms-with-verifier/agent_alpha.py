@@ -23,6 +23,7 @@ import uuid
 # Make bus.py importable from this directory.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bus import Bus
+from agent_memory import MemoryStore
 
 
 def main() -> int:
@@ -37,6 +38,11 @@ def main() -> int:
                         help="task to send (compute_total for Beta, write_report for Gamma)")
     parser.add_argument("--intent", default="compute the total of these line items and report success")
     parser.add_argument("--wait-sec", type=float, default=30.0)
+    parser.add_argument("--memory-db", default=os.environ.get("AGENT_MEMORY_DB", ""),
+                        help="path to MemoryStore SQLite (for reputation-aware pick)")
+    parser.add_argument("--reputation-min", type=float, default=None,
+                        help="if set, do a reputation-aware pick (skip low-reputation replicas) "
+                             "instead of topic-fanout. Requires --memory-db.")
     args = parser.parse_args()
 
     bus = Bus(args.db)
@@ -48,20 +54,48 @@ def main() -> int:
     )
 
     # Routing: --target-id pins a specific replica (direct addressing);
-    # --target-role publishes to role.<role> so any subscribed replica can claim.
+    # --target-role with --reputation-min picks a reputable replica directly;
+    # --target-role alone publishes to role.<role> so any subscribed replica can claim.
     target_id = args.target_id
     target_role = args.target_role
+    memory = MemoryStore(args.memory_db) if args.memory_db else None
+
     if not target_id and not target_role:
-        # Default fallback for backwards-compat with the two-agent demo.
         target_id = "agent_beta"
         print(f"[alpha] no target specified; defaulting to {target_id}", flush=True)
-    # Optional: wait briefly for role-subscribed replicas to come up.
+
     if target_role:
+        # Wait briefly for any matching replica to register.
         deadline = time.time() + 5.0
         while time.time() < deadline:
             if bus.find_agents_by_role(target_role, alive_only=True):
                 break
             time.sleep(0.2)
+
+        if args.reputation_min is not None:
+            if memory is None:
+                print(f"[alpha] WARNING: --reputation-min requires --memory-db; falling back to topic-fanout",
+                      flush=True)
+            else:
+                picked = bus.pick_agent_by_role(
+                    target_role, memory_store=memory,
+                    reputation_min=args.reputation_min,
+                )
+                if picked is None:
+                    print(f"[alpha] no replica with reputation >= {args.reputation_min} "
+                          f"for role={target_role!r}; falling back to topic-fanout",
+                          flush=True)
+                else:
+                    target_id = picked["id"]
+                    target_role = None  # switch to direct addressing
+                    status_tag = picked.get("_reputation_status", "?")
+                    score = picked.get("_reputation_score")
+                    if score is not None:
+                        print(f"[alpha] reputation-aware pick: {target_id} "
+                              f"(status={status_tag}, score={score:.2f})", flush=True)
+                    else:
+                        print(f"[alpha] reputation-aware pick: {target_id} "
+                              f"(status={status_tag})", flush=True)
 
     conv_id = "cnv_" + uuid.uuid4().hex[:12]
     target_label = target_id or f"role.{target_role}"
